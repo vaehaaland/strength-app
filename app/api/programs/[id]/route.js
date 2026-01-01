@@ -35,3 +35,24 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+export async function PUT(request, { params }) {
+  try {
+    const resolvedParams = await params;
+    const database = await getDatabase();
+    const { name, description, is_active } = await request.json();
+
+    const result = await database.run(
+      'UPDATE workout_programs SET name = ?, description = ?, is_active = ? WHERE id = ?',
+      [name, description, is_active ? 1 : 0, resolvedParams.id]
+    );
+
+    if (result.changes === 0) {
+      return NextResponse.json({ error: 'Program not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ id: resolvedParams.id, name, description, is_active });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

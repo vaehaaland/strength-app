@@ -6,7 +6,7 @@ export async function GET(request, { params }) {
     const resolvedParams = await params;
     const database = await getDatabase();
     const log = await database.get(
-      `SELECT wl.*, pw.name as workout_name, wp.name as program_name
+      `SELECT wl.*, pw.name as workout_name, wp.name as program_name, wp.id as program_id
        FROM workout_logs wl
        LEFT JOIN program_workouts pw ON wl.program_workout_id = pw.id
        LEFT JOIN workout_programs wp ON pw.program_id = wp.id
@@ -47,6 +47,23 @@ export async function PUT(request, { params }) {
     );
 
     return NextResponse.json({ id: resolvedParams.id, completed, notes });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+export async function DELETE(request, { params }) {
+  try {
+    const resolvedParams = await params;
+    const database = await getDatabase();
+
+    // Delete exercise logs first (foreign key)
+    await database.run('DELETE FROM exercise_logs WHERE workout_log_id = ?', [resolvedParams.id]);
+
+    // Delete the workout log
+    await database.run('DELETE FROM workout_logs WHERE id = ?', [resolvedParams.id]);
+
+    return NextResponse.json({ success: true, id: resolvedParams.id });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
