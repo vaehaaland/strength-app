@@ -3,6 +3,7 @@ import { getDatabase } from '@/lib/db';
 
 export async function GET(request, { params }) {
   try {
+    const resolvedParams = await params;
     const database = await getDatabase();
     const log = await database.get(
       `SELECT wl.*, pw.name as workout_name, wp.name as program_name
@@ -10,7 +11,7 @@ export async function GET(request, { params }) {
        LEFT JOIN program_workouts pw ON wl.program_workout_id = pw.id
        LEFT JOIN workout_programs wp ON pw.program_id = wp.id
        WHERE wl.id = ?`,
-      [params.id]
+      [resolvedParams.id]
     );
 
     if (!log) {
@@ -23,7 +24,7 @@ export async function GET(request, { params }) {
        JOIN exercises e ON el.exercise_id = e.id
        WHERE el.workout_log_id = ?
        ORDER BY el.exercise_id, el.set_number`,
-      [params.id]
+      [resolvedParams.id]
     );
 
     log.exercises = exercises;
@@ -36,15 +37,16 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
+    const resolvedParams = await params;
     const database = await getDatabase();
     const { completed, notes } = await request.json();
 
     await database.run(
       'UPDATE workout_logs SET completed = ?, notes = ? WHERE id = ?',
-      [completed, notes, params.id]
+      [completed, notes, resolvedParams.id]
     );
 
-    return NextResponse.json({ id: params.id, completed, notes });
+    return NextResponse.json({ id: resolvedParams.id, completed, notes });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
