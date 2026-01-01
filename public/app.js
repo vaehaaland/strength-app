@@ -72,6 +72,7 @@ function setupEventListeners() {
 
   // Complete Workout
   document.getElementById('complete-workout-btn').addEventListener('click', completeWorkout);
+  document.getElementById('delete-workout-btn').addEventListener('click', deleteIncompleteWorkout);
 
   // Modal close
   document.querySelector('.modal-close').addEventListener('click', closeModal);
@@ -580,6 +581,16 @@ async function deleteWorkoutLog(id) {
   closeModal();
   await loadWorkoutLogs();
   renderWorkoutLogs();
+}
+
+async function deleteIncompleteWorkout() {
+  if (!state.currentWorkoutLog) return;
+  if (!confirm('Are you sure you want to delete this workout?')) return;
+
+  await fetchAPI(`/workout-logs/${state.currentWorkoutLog}`, { method: 'DELETE' });
+  state.currentWorkoutLog = null;
+  await loadWorkoutLogs();
+  switchView('workouts');
 }
 
 async function resumeWorkout(logId) {

@@ -162,9 +162,6 @@ body {
 .btn-success {
   background: var(--success);
   color: white;
-  width: 100%;
-  padding: 1rem;
-  font-size: 1.125rem;
 }
 
 .btn-success:hover,
@@ -456,6 +453,28 @@ body {
   bottom: 1rem;
   margin-top: 2rem;
   padding-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.workout-actions .button-group {
+  display: inline-flex;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  background: var(--surface);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  align-items: stretch;
+}
+
+.workout-actions .button-group .btn {
+  border-radius: 0;
+  padding: 0.75rem 1.25rem;
+  flex: 1;
+}
+
+.workout-actions .button-group .btn:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* Stats Grid */
@@ -484,6 +503,63 @@ body {
 .stat-label {
   font-size: 0.875rem;
   color: var(--text-light);
+}
+
+.stat-trend {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-light);
+}
+
+.trend-up {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.trend-down {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.trend-flat {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.chart-card {
+  cursor: default;
+}
+
+.chart-card:hover,
+.chart-card:active {
+  transform: none;
+  box-shadow: var(--shadow);
+}
+
+.chart {
+  width: 100%;
+}
+
+.chart svg {
+  width: 100%;
+  height: 90px;
+  display: block;
+}
+
+.chart-empty {
+  padding: 0.75rem 0;
+}
+
+.chart-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
 }
 
 /* Empty State */
@@ -587,6 +663,13 @@ body {
     background: linear-gradient(to top, var(--bg) 80%, transparent);
     margin: 0;
     z-index: 50;
+    display: flex;
+    justify-content: center;
+  }
+
+  .workout-actions .button-group {
+    width: 100%;
+    max-width: 520px;
   }
 
   .main {
