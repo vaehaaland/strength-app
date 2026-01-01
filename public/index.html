@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="theme-color" content="#1e40af">
+  <meta name="description" content="Track your workouts, sets, reps, and health stats">
+  <title>Strength Tracker</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="apple-touch-icon" href="/icon-192.svg">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="nav-container">
+      <h1 class="nav-title">💪 Strength Tracker</h1>
+      <div class="nav-links">
+        <button class="nav-link active" data-view="workouts">Workouts</button>
+        <button class="nav-link" data-view="programs">Programs</button>
+        <button class="nav-link" data-view="stats">Stats</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="main">
+    <!-- Workouts View -->
+    <div id="workouts-view" class="view active">
+      <div class="view-header">
+        <h2>Workout Log</h2>
+        <button class="btn btn-primary" id="start-workout-btn">Start Workout</button>
+      </div>
+      <div id="workout-logs-list" class="list"></div>
+    </div>
+
+    <!-- Programs View -->
+    <div id="programs-view" class="view">
+      <div class="view-header">
+        <h2>Training Programs</h2>
+        <button class="btn btn-primary" id="create-program-btn">Create Program</button>
+      </div>
+      <div class="program-templates">
+        <button class="btn btn-secondary" id="create-531-btn">Create 5/3/1 Program</button>
+      </div>
+      <div id="programs-list" class="list"></div>
+    </div>
+
+    <!-- Stats View -->
+    <div id="stats-view" class="view">
+      <div class="view-header">
+        <h2>Health Stats</h2>
+        <button class="btn btn-primary" id="add-stats-btn">Add Entry</button>
+      </div>
+      <div id="stats-list" class="list"></div>
+    </div>
+
+    <!-- Program Detail View -->
+    <div id="program-detail-view" class="view">
+      <div class="view-header">
+        <button class="btn btn-back" id="back-to-programs">← Back</button>
+        <h2 id="program-detail-title"></h2>
+      </div>
+      <div id="program-detail-content"></div>
+    </div>
+
+    <!-- Workout Detail View -->
+    <div id="workout-detail-view" class="view">
+      <div class="view-header">
+        <button class="btn btn-back" id="back-to-workouts">← Back</button>
+        <h2 id="workout-detail-title">Current Workout</h2>
+      </div>
+      <div id="workout-detail-content"></div>
+      <div class="workout-actions">
+        <button class="btn btn-success" id="complete-workout-btn">Complete Workout</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <button class="modal-close">&times;</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+  <script>
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('Service Worker registered'))
+          .catch(err => console.log('Service Worker registration failed', err));
+      });
+    }
+  </script>
+</body>
+</html>
