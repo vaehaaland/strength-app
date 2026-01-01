@@ -16,7 +16,7 @@ A modern Progressive Web App (PWA) for tracking workouts, health stats, and mana
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
+- Node.js 18.17+ (or newer LTS)
 - npm
 
 ### Installation
@@ -32,14 +32,20 @@ cd strength-app
 npm install
 ```
 
-3. Start the server:
+3. Start the Next.js dev server:
 ```bash
-npm start
+npm run dev
 ```
 
 4. Open your browser and navigate to:
 ```
 http://localhost:3000
+```
+
+5. For a production build:
+```bash
+npm run build
+npm start
 ```
 
 ### For Homelab Deployment
@@ -106,15 +112,21 @@ The app will automatically create a 4-day program with appropriate sets and rep 
 
 ```
 strength-app/
-├── server/
-│   └── index.js          # Express server and API endpoints
+├── app/
+│   ├── api/              # Next.js route handlers (replaces Express API)
+│   ├── head.js           # (Optional) document <head> metadata (CSS is not loaded here in the App Router)
+│   ├── layout.js         # App Router root layout & metadata; imports global CSS/styles
+│   └── page.jsx          # Main UI shell that mounts the existing JS app
+├── lib/
+│   └── db.js             # Shared SQLite connection & schema setup
 ├── public/
-│   ├── index.html        # Main HTML file
-│   ├── style.css         # Styles
-│   ├── app.js            # Frontend JavaScript
+│   ├── style.css         # Styles (still served for the PWA + service worker)
+│   ├── app.js            # Frontend JavaScript (runs in the Next.js page)
 │   ├── manifest.json     # PWA manifest
 │   ├── sw.js             # Service worker for offline functionality
 │   └── icon-*.svg        # App icons
+├── server/               # Legacy Express server (kept for reference)
+├── jsconfig.json         # Path aliases for @/* imports
 ├── package.json
 └── README.md
 ```
@@ -173,13 +185,16 @@ The app uses SQLite with the following tables:
 ## Development
 
 The app is built with:
-- **Backend**: Node.js, Express, sqlite3 (async API via `sqlite`)
-- **Frontend**: Vanilla JavaScript, HTML5, CSS3 (framework-friendly structure)
-- **PWA**: Service Worker, Web App Manifest
+- **Runtime**: Next.js (App Router) + React 18
+- **API**: Next.js route handlers backed by SQLite (see `app/api/*`)
+- **Frontend**: Existing vanilla JS UI mounted in `app/page.jsx` with shared styling served from `public/style.css`
+- **PWA**: Service Worker and Web App Manifest served from `public/`
 
-No build step required - just edit and refresh!
+Build workflow:
+- `npm run dev` to develop with hot reload on port 3000
+- `npm run build && npm start` for production
 
-If you want a smoother UI workflow, the project can be progressively enhanced with a lightweight framework such as **Preact** or **Svelte** behind Vite while keeping the current HTML structure. That keeps bundle sizes small and the PWA footprint lean while enabling component-driven UI updates.
+Future cleanups can progressively migrate the DOM-driven UI in `public/app.js` into React components while reusing the current API routes.
 
 ## Security Considerations
 

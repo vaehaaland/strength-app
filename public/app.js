@@ -13,17 +13,23 @@ const state = {
 };
 
 // Initialize App
-document.addEventListener('DOMContentLoaded', async () => {
+async function initializeApp() {
   await loadExercises();
   await loadPrograms();
   await loadWorkoutLogs();
   await loadHealthStats();
-  
+
   setupNavigation();
   setupEventListeners();
-  
+
   renderCurrentView();
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+  initializeApp();
+}
 
 // Navigation
 function setupNavigation() {
