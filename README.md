@@ -179,6 +179,15 @@ The app is built with:
 
 No build step required - just edit and refresh!
 
+## Security Considerations
+
+This application is designed for local/homelab use. If deploying to a public-facing server, consider adding:
+- Rate limiting middleware (e.g., express-rate-limit)
+- Authentication and authorization
+- HTTPS/TLS encryption
+- Input sanitization beyond basic validation
+- CSRF protection
+
 ## License
 
 MIT

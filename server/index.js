@@ -7,7 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize database
-const db = new Database('strength-app.db');
+const db = new Database(path.join(__dirname, '../strength-app.db'));
 
 // Create tables
 db.exec(`
@@ -95,8 +95,11 @@ app.get('/api/exercises', (req, res) => {
 
 app.post('/api/exercises', (req, res) => {
   const { name, category } = req.body;
-  const result = db.prepare('INSERT INTO exercises (name, category) VALUES (?, ?)').run(name, category);
-  res.json({ id: result.lastInsertRowid, name, category });
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Exercise name is required' });
+  }
+  const result = db.prepare('INSERT INTO exercises (name, category) VALUES (?, ?)').run(name.trim(), category);
+  res.json({ id: result.lastInsertRowid, name: name.trim(), category });
 });
 
 app.get('/api/exercises/:id', (req, res) => {
@@ -113,8 +116,11 @@ app.get('/api/programs', (req, res) => {
 
 app.post('/api/programs', (req, res) => {
   const { name, description, program_type } = req.body;
-  const result = db.prepare('INSERT INTO workout_programs (name, description, program_type) VALUES (?, ?, ?)').run(name, description, program_type);
-  res.json({ id: result.lastInsertRowid, name, description, program_type });
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Program name is required' });
+  }
+  const result = db.prepare('INSERT INTO workout_programs (name, description, program_type) VALUES (?, ?, ?)').run(name.trim(), description, program_type);
+  res.json({ id: result.lastInsertRowid, name: name.trim(), description, program_type });
 });
 
 app.get('/api/programs/:id', (req, res) => {

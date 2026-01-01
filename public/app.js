@@ -379,8 +379,8 @@ function startCustomWorkout(logId) {
   const content = `
     <div class="empty-state">
       <div class="empty-state-icon">🏋️</div>
-      <div class="empty-state-text">Add exercises to your custom workout</div>
-      <button class="btn btn-primary" onclick="addExerciseToWorkout()">Add Exercise</button>
+      <div class="empty-state-text">Custom workouts allow you to add any exercises as you go</div>
+      <p class="text-muted">Start logging sets and reps, and we'll track them for you!</p>
     </div>
   `;
   
