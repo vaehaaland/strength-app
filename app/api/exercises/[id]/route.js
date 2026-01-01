@@ -4,7 +4,8 @@ import { getDatabase } from '@/lib/db';
 export async function GET(request, { params }) {
   try {
     const database = await getDatabase();
-    const exercise = await database.get('SELECT * FROM exercises WHERE id = ?', [params.id]);
+    const resolvedParams = await params;
+    const exercise = await database.get('SELECT * FROM exercises WHERE id = ?', [resolvedParams.id]);
 
     if (!exercise) {
       return NextResponse.json({ error: 'Exercise not found' }, { status: 404 });
