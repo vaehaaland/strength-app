@@ -2,7 +2,6 @@
   "name": "strength-app",
   "version": "1.0.0",
   "description": "Workout tracking and health stats PWA",
-  "main": "app/page.jsx",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
