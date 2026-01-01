@@ -173,11 +173,13 @@ The app uses SQLite with the following tables:
 ## Development
 
 The app is built with:
-- **Backend**: Node.js, Express, better-sqlite3
-- **Frontend**: Vanilla JavaScript, HTML5, CSS3
+- **Backend**: Node.js, Express, sqlite3 (async API via `sqlite`)
+- **Frontend**: Vanilla JavaScript, HTML5, CSS3 (framework-friendly structure)
 - **PWA**: Service Worker, Web App Manifest
 
 No build step required - just edit and refresh!
+
+If you want a smoother UI workflow, the project can be progressively enhanced with a lightweight framework such as **Preact** or **Svelte** behind Vite while keeping the current HTML structure. That keeps bundle sizes small and the PWA footprint lean while enabling component-driven UI updates.
 
 ## Security Considerations
 
