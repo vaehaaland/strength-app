@@ -114,8 +114,8 @@ The app will automatically create a 4-day program with appropriate sets and rep 
 strength-app/
 ├── app/
 │   ├── api/              # Next.js route handlers (replaces Express API)
-│   ├── head.js           # Global head tags (loads CSS)
-│   ├── layout.js         # App Router root layout & metadata
+│   ├── head.js           # (Optional) document <head> metadata (CSS is not loaded here in the App Router)
+│   ├── layout.js         # App Router root layout & metadata; imports global CSS/styles
 │   └── page.jsx          # Main UI shell that mounts the existing JS app
 ├── lib/
 │   └── db.js             # Shared SQLite connection & schema setup
