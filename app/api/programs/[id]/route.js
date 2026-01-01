@@ -3,8 +3,9 @@ import { getDatabase } from '@/lib/db';
 
 export async function GET(request, { params }) {
   try {
+    const resolvedParams = await params;
     const database = await getDatabase();
-    const program = await database.get('SELECT * FROM workout_programs WHERE id = ?', [params.id]);
+    const program = await database.get('SELECT * FROM workout_programs WHERE id = ?', [resolvedParams.id]);
 
     if (!program) {
       return NextResponse.json({ error: 'Program not found' }, { status: 404 });
@@ -12,7 +13,7 @@ export async function GET(request, { params }) {
 
     const workouts = await database.all(
       'SELECT * FROM program_workouts WHERE program_id = ? ORDER BY day_number',
-      [params.id]
+      [resolvedParams.id]
     );
 
     for (const workout of workouts) {
