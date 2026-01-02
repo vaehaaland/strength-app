@@ -17,7 +17,7 @@ A comprehensive workout tracking application built with Next.js 16, featuring 5/
 - Node.js 20.x or higher
 - npm
 
-### Installation
+### Local Development
 
 1. Clone the repository:
 ```bash
@@ -41,6 +41,16 @@ npm run dev
 ```
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+### Docker Deployment
+
+For production deployment with Docker, see [DOCKER.md](DOCKER.md) for detailed instructions.
+
+Quick start:
+```bash
+docker build -t strength-app .
+docker run -p 3000:3000 -v $(pwd)/data:/data strength-app
+```
 
 ## Database
 

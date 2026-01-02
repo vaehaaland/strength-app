@@ -1,12 +1,18 @@
 #!/bin/sh
 set -e
 
-# Kjør migrations i prod (hvis du bruker Prisma migrations)
+# Ensure data directory exists
+mkdir -p /data/db
+
+# Set DATABASE_URL for Prisma if not already set
+export DATABASE_URL="${DATABASE_URL:-file:/data/db/app.db}"
+
+# Run migrations in prod (if using Prisma migrations)
 npx prisma migrate deploy || true
 
-# (Valgfritt) Init/seed kun dersom db mangler – dette må vi styre litt forsiktig.
-# Du kan fjerne dette om du vil ha full kontroll manuelt.
-if [ ! -f "/data/dev.db" ]; then
+# (Optional) Init/seed only if db is missing - handle carefully
+# You can remove this if you want full manual control
+if [ ! -f "/data/db/app.db" ]; then
   echo "DB not found, initializing..."
   node init-db.js || true
   node seed-db.js || true
