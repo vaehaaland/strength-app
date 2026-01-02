@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Plus, Trash2, Dumbbell, ChevronDown, Search, Pencil, Smartphone, Radio } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -56,14 +56,65 @@ interface Program {
   exercises: ProgramExercise[]
 }
 
+const accessoryRecommendations: Record<string, string[]> = {
+  Deadlift: [
+    'Hamstring Curls',
+    'Hip Thrusts',
+    'Glute Bridge',
+    'Good Mornings',
+    "Farmer's Walk",
+    'Dead Hangs',
+    'Plank',
+    'Ab Wheel Rollouts',
+  ],
+  'Bench Press': [
+    'Chest Flyes',
+    'Shoulder Lateral Raises',
+    'Rear Delt Flyes',
+    'Face Pulls',
+    'Push-ups',
+    'Tricep Extensions',
+    'Tricep Dips',
+    'Overhead Tricep Extension',
+  ],
+  Squat: [
+    'Leg Press',
+    'Leg Extensions',
+    'Hamstring Curls',
+    'Hip Thrusts',
+    'Glute Bridge',
+    'Bulgarian Split Squat',
+    'Lunges',
+    'Step-ups',
+    'Good Mornings',
+    'Calf Raises',
+    'Plank',
+  ],
+  'Overhead Press': [
+    'Shoulder Lateral Raises',
+    'Rear Delt Flyes',
+    'Face Pulls',
+    'Tricep Extensions',
+    'Overhead Tricep Extension',
+    'Hammer Curls',
+    'Push-ups',
+    'Plank',
+  ],
+  'Barbell Row': ['Face Pulls', 'Rear Delt Flyes', 'Bicep Curls', 'Hammer Curls', 'Dead Hangs'],
+  'Pull-ups': ['Face Pulls', 'Rear Delt Flyes', 'Hammer Curls', 'Bicep Curls', 'Dead Hangs'],
+  'Lat Pulldown': ['Face Pulls', 'Rear Delt Flyes', 'Hammer Curls', 'Bicep Curls', 'Dead Hangs'],
+}
+
 function ExerciseSelect({
   exercises,
   value,
-  onChange
+  onChange,
+  recommendedIds = []
 }: {
   exercises: Exercise[],
   value: string,
-  onChange: (value: string) => void
+  onChange: (value: string) => void,
+  recommendedIds?: string[]
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -82,9 +133,17 @@ function ExerciseSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [wrapperRef])
 
-  const filteredExercises = exercises.filter(ex =>
-    ex.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const recommendedSet = new Set(recommendedIds)
+  const filteredExercises = exercises
+    .filter(ex => ex.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      const aRecommended = recommendedSet.has(a.id)
+      const bRecommended = recommendedSet.has(b.id)
+
+      if (aRecommended && !bRecommended) return -1
+      if (bRecommended && !aRecommended) return 1
+      return a.name.localeCompare(b.name)
+    })
 
   return (
     <div className="relative flex-1 max-w-sm" ref={wrapperRef}>
@@ -132,11 +191,18 @@ function ExerciseSelect({
                   }`}
               >
                 <span>{exercise.name}</span>
-                {exercise.category && (
-                  <span className="text-[10px] uppercase font-semibold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
-                    {exercise.category}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {recommendedSet.has(exercise.id) && (
+                    <span className="text-[10px] font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 rounded">
+                      Recommended
+                    </span>
+                  )}
+                  {exercise.category && (
+                    <span className="text-[10px] uppercase font-semibold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                      {exercise.category}
+                    </span>
+                  )}
+                </div>
               </div>
             ))
           )}
@@ -167,6 +233,23 @@ export default function WorkoutsPage() {
       sets: [{ reps: 10, weight: 0 }]
     }
   ])
+
+  const recommendedAccessoryIds = useMemo(() => {
+    const selectedCompoundNames = workoutExercises
+      .map((exercise) => exercises.find((ex) => ex.id === exercise.exerciseId))
+      .filter((exercise): exercise is Exercise => Boolean(exercise && exercise.category === 'compound'))
+      .map((exercise) => exercise.name)
+
+    const recommendedNames = new Set<string>()
+
+    selectedCompoundNames.forEach((name) => {
+      accessoryRecommendations[name]?.forEach((accessory) => recommendedNames.add(accessory))
+    })
+
+    return exercises
+      .filter((exercise) => exercise.category === 'accessory' && recommendedNames.has(exercise.name))
+      .map((exercise) => exercise.id)
+  }, [workoutExercises, exercises])
 
   useEffect(() => {
     fetchWorkouts()
@@ -493,6 +576,7 @@ export default function WorkoutsPage() {
                     exercises={exercises}
                     value={ex.exerciseId}
                     onChange={(val) => updateExercise(exerciseIndex, 'exerciseId', val)}
+                    recommendedIds={recommendedAccessoryIds}
                   />
                   <button
                     type="button"
