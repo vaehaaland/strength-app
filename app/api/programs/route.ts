@@ -25,6 +25,15 @@ export async function GET() {
   }
 }
 
+type ProgramInputExercise = {
+  exerciseId: string
+  oneRepMax?: number
+  trainingMax?: number
+  sets?: number
+  reps?: number
+  weight?: number | null
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -40,12 +49,25 @@ export async function POST(request: NextRequest) {
         type,
         description,
         exercises: {
-          create: exercises?.map((ex: any, index: number) => ({
-            exerciseId: ex.exerciseId,
-            oneRepMax: ex.oneRepMax,
-            trainingMax: ex.trainingMax || ex.oneRepMax * 0.9,
-            order: index,
-          })) || [],
+          create: (exercises as ProgramInputExercise[] | undefined)?.map((ex, index: number) => {
+            const oneRepMax = typeof ex.oneRepMax === 'number' ? ex.oneRepMax : null
+            const trainingMax =
+              typeof ex.trainingMax === 'number'
+                ? ex.trainingMax
+                : oneRepMax
+                ? oneRepMax * 0.9
+                : null
+
+            return {
+              exerciseId: ex.exerciseId,
+              oneRepMax,
+              trainingMax,
+              sets: typeof ex.sets === 'number' ? ex.sets : null,
+              reps: typeof ex.reps === 'number' ? ex.reps : null,
+              weight: typeof ex.weight === 'number' ? ex.weight : null,
+              order: index,
+            }
+          }) || [],
         },
       },
       include: {

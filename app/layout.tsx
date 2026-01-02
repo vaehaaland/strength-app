@@ -5,7 +5,7 @@ import { Dumbbell } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Strength Tracker - Workout & Program Manager",
-  description: "Track your workouts, manage 5/3/1 programs, and monitor your strength progress",
+  description: "Track your workouts, manage 5/3/1, custom, and hypertrophy programs, and monitor your strength progress",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

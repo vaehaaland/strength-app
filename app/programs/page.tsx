@@ -13,8 +13,11 @@ interface Exercise {
 interface ProgramExercise {
   id: string
   exercise: Exercise
-  oneRepMax: number
-  trainingMax: number
+  oneRepMax?: number | null
+  trainingMax?: number | null
+  sets?: number | null
+  reps?: number | null
+  weight?: number | null
 }
 
 interface Program {
@@ -35,8 +38,13 @@ export default function ProgramsPage() {
   // Form state
   const [programName, setProgramName] = useState('')
   const [programDescription, setProgramDescription] = useState('')
-  const [programExercises, setProgramExercises] = useState<{ exerciseId: string; oneRepMax: number }[]>([
-    { exerciseId: '', oneRepMax: 0 }
+  const [programType, setProgramType] = useState<'531' | 'custom' | 'hypertrophy'>('531')
+  const [programMainExercises, setProgramMainExercises] = useState<{ exerciseId: string; oneRepMax: number }[]>([
+    { exerciseId: '', oneRepMax: 0 },
+  ])
+  const [programAccessoryExercises, setProgramAccessoryExercises] = useState<{ exerciseId: string; sets: number; reps: number; weight: number | null }[]>([])
+  const [programCustomExercises, setProgramCustomExercises] = useState<{ exerciseId: string; sets: number; reps: number; weight: number | null }[]>([
+    { exerciseId: '', sets: 3, reps: 10, weight: null },
   ])
 
   useEffect(() => {
@@ -48,6 +56,11 @@ export default function ProgramsPage() {
     try {
       const res = await fetch('/api/programs')
       const data = await res.json()
+      if (!res.ok || !Array.isArray(data)) {
+        console.error('Failed to fetch programs:', data)
+        setPrograms([])
+        return
+      }
       setPrograms(data)
     } catch (error) {
       console.error('Failed to fetch programs:', error)
@@ -60,7 +73,7 @@ export default function ProgramsPage() {
     try {
       const res = await fetch('/api/exercises')
       const data = await res.json()
-      setExercises(data.filter((ex: Exercise) => ex.category === 'compound'))
+      setExercises(data)
     } catch (error) {
       console.error('Failed to fetch exercises:', error)
     }
@@ -70,14 +83,42 @@ export default function ProgramsPage() {
     e.preventDefault()
 
     try {
+      const mainExercises = programMainExercises
+        .filter((ex) => ex.exerciseId && ex.oneRepMax > 0)
+        .map((ex) => ({
+          exerciseId: ex.exerciseId,
+          oneRepMax: ex.oneRepMax,
+        }))
+
+      const accessoryExercises = programAccessoryExercises
+        .filter((ex) => ex.exerciseId && ex.sets > 0 && ex.reps > 0)
+        .map((ex) => ({
+          exerciseId: ex.exerciseId,
+          sets: ex.sets,
+          reps: ex.reps,
+          weight: ex.weight ?? null,
+        }))
+
+      const customExercises = programCustomExercises
+        .filter((ex) => ex.exerciseId && ex.sets > 0 && ex.reps > 0)
+        .map((ex) => ({
+          exerciseId: ex.exerciseId,
+          sets: ex.sets,
+          reps: ex.reps,
+          weight: ex.weight ?? null,
+        }))
+
+      const exercisesPayload =
+        programType === '531' ? [...mainExercises, ...accessoryExercises] : customExercises
+
       const res = await fetch('/api/programs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: programName,
-          type: '531',
+          type: programType,
           description: programDescription,
-          exercises: programExercises.filter(ex => ex.exerciseId && ex.oneRepMax > 0),
+          exercises: exercisesPayload,
         }),
       })
 
@@ -85,7 +126,10 @@ export default function ProgramsPage() {
         setIsFormOpen(false)
         setProgramName('')
         setProgramDescription('')
-        setProgramExercises([{ exerciseId: '', oneRepMax: 0 }])
+        setProgramType('531')
+        setProgramMainExercises([{ exerciseId: '', oneRepMax: 0 }])
+        setProgramAccessoryExercises([])
+        setProgramCustomExercises([{ exerciseId: '', sets: 3, reps: 10, weight: null }])
         fetchPrograms()
       }
     } catch (error) {
@@ -107,19 +151,86 @@ export default function ProgramsPage() {
     }
   }
 
-  function addExerciseRow() {
-    setProgramExercises([...programExercises, { exerciseId: '', oneRepMax: 0 }])
+  function addMainExerciseRow() {
+    setProgramMainExercises([...programMainExercises, { exerciseId: '', oneRepMax: 0 }])
   }
 
-  function removeExerciseRow(index: number) {
-    setProgramExercises(programExercises.filter((_, i) => i !== index))
+  function removeMainExerciseRow(index: number) {
+    setProgramMainExercises(programMainExercises.filter((_, i) => i !== index))
   }
 
-  function updateExerciseRow(index: number, field: 'exerciseId' | 'oneRepMax', value: any) {
-    const updated = [...programExercises]
+  function updateMainExerciseRow(index: number, field: 'exerciseId' | 'oneRepMax', value: string | number) {
+    const updated = [...programMainExercises]
     updated[index] = { ...updated[index], [field]: value }
-    setProgramExercises(updated)
+    setProgramMainExercises(updated)
   }
+
+  function addAccessoryExerciseRow() {
+    setProgramAccessoryExercises([
+      ...programAccessoryExercises,
+      { exerciseId: '', sets: 3, reps: 12, weight: null },
+    ])
+  }
+
+  function removeAccessoryExerciseRow(index: number) {
+    setProgramAccessoryExercises(programAccessoryExercises.filter((_, i) => i !== index))
+  }
+
+  function updateAccessoryExerciseRow(
+    index: number,
+    field: 'exerciseId' | 'sets' | 'reps' | 'weight',
+    value: string | number | null
+  ) {
+    const updated = [...programAccessoryExercises]
+    updated[index] = { ...updated[index], [field]: value }
+    setProgramAccessoryExercises(updated)
+  }
+
+  function addCustomExerciseRow() {
+    setProgramCustomExercises([
+      ...programCustomExercises,
+      { exerciseId: '', sets: 3, reps: 10, weight: null },
+    ])
+  }
+
+  function removeCustomExerciseRow(index: number) {
+    setProgramCustomExercises(programCustomExercises.filter((_, i) => i !== index))
+  }
+
+  function updateCustomExerciseRow(
+    index: number,
+    field: 'exerciseId' | 'sets' | 'reps' | 'weight',
+    value: string | number | null
+  ) {
+    const updated = [...programCustomExercises]
+    updated[index] = { ...updated[index], [field]: value }
+    setProgramCustomExercises(updated)
+  }
+
+  const compoundExercises = exercises.filter((ex) => ex.category === 'compound')
+  const formatProgramType = (type: string) => {
+    if (type === '531') return '5/3/1'
+    if (type === 'hypertrophy') return 'Hypertrophy'
+    return 'Custom'
+  }
+
+  const formatExerciseSummary = (exercise: ProgramExercise) => {
+    if (exercise.oneRepMax) {
+      return `1RM: ${exercise.oneRepMax}kg`
+    }
+    if (exercise.sets && exercise.reps) {
+      const weightLabel =
+        exercise.weight === null || exercise.weight === undefined ? 'BW' : `${exercise.weight}kg`
+      return `${exercise.sets}x${exercise.reps} - ${weightLabel}`
+    }
+    return '-'
+  }
+  const mainProgramExercises = selectedProgram?.exercises.filter(
+    (exercise) => exercise.oneRepMax || exercise.trainingMax
+  ) || []
+  const accessoryProgramExercises = selectedProgram?.exercises.filter(
+    (exercise) => !exercise.oneRepMax && !exercise.trainingMax && exercise.sets && exercise.reps
+  ) || []
 
   if (loading) {
     return (
@@ -132,7 +243,7 @@ export default function ProgramsPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">5/3/1 Programs</h1>
+        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Programs</h1>
         <button
           onClick={() => setIsFormOpen(true)}
           className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
@@ -146,7 +257,7 @@ export default function ProgramsPage() {
       {isFormOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-            <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-zinc-50">Create 5/3/1 Program</h2>
+            <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-zinc-50">Create Program</h2>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium mb-2 text-zinc-700 dark:text-zinc-300">
@@ -164,6 +275,26 @@ export default function ProgramsPage() {
 
               <div>
                 <label className="block text-sm font-medium mb-2 text-zinc-700 dark:text-zinc-300">
+                  Program Type
+                </label>
+                <select
+                  value={programType}
+                  onChange={(e) => setProgramType(e.target.value as '531' | 'custom' | 'hypertrophy')}
+                  className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="531">5/3/1</option>
+                  <option value="custom">Custom</option>
+                  <option value="hypertrophy">Hypertrophy</option>
+                </select>
+                {programType === 'hypertrophy' && (
+                  <p className="mt-2 text-xs text-zinc-500">
+                    Hypertrophy: focus on higher reps and moderate loads.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-zinc-700 dark:text-zinc-300">
                   Description
                 </label>
                 <textarea
@@ -175,59 +306,221 @@ export default function ProgramsPage() {
                 />
               </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-3">
-                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    Exercises & 1RM
-                  </label>
-                  <button
-                    type="button"
-                    onClick={addExerciseRow}
-                    className="text-sm text-purple-600 dark:text-purple-400 hover:underline"
-                  >
-                    + Add Exercise
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {programExercises.map((ex, index) => (
-                    <div key={index} className="p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg space-y-3">
-                      <div className="flex gap-3">
-                        <select
-                          value={ex.exerciseId}
-                          onChange={(e) => updateExerciseRow(index, 'exerciseId', e.target.value)}
-                          className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
-                        >
-                          <option value="">Select compound exercise...</option>
-                          {exercises.map((exercise) => (
-                            <option key={exercise.id} value={exercise.id}>
-                              {exercise.name}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="number"
-                          value={ex.oneRepMax || ''}
-                          onChange={(e) => updateExerciseRow(index, 'oneRepMax', parseFloat(e.target.value) || 0)}
-                          placeholder="1RM (kg)"
-                          min="0"
-                          step="0.5"
-                          className="w-32 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
-                        />
-                        {programExercises.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeExerciseRow(index)}
-                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
+              {programType === '531' ? (
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Main Lifts & 1RM
+                      </label>
+                      <button
+                        type="button"
+                        onClick={addMainExerciseRow}
+                        className="text-sm text-purple-600 dark:text-purple-400 hover:underline"
+                      >
+                        + Add Main Lift
+                      </button>
                     </div>
-                  ))}
+
+                    <div className="space-y-3">
+                      {programMainExercises.map((ex, index) => (
+                        <div key={index} className="p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg space-y-3">
+                          <div className="flex gap-3">
+                            <select
+                              value={ex.exerciseId}
+                              onChange={(e) => updateMainExerciseRow(index, 'exerciseId', e.target.value)}
+                              className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                            >
+                              <option value="">Select compound exercise...</option>
+                              {compoundExercises.map((exercise) => (
+                                <option key={exercise.id} value={exercise.id}>
+                                  {exercise.name}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="number"
+                              value={ex.oneRepMax || ''}
+                              onChange={(e) => updateMainExerciseRow(index, 'oneRepMax', parseFloat(e.target.value) || 0)}
+                              placeholder="1RM (kg)"
+                              min="0"
+                              step="0.5"
+                              className="w-32 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                            />
+                            {programMainExercises.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeMainExerciseRow(index)}
+                                className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Accessories (sets/reps)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={addAccessoryExerciseRow}
+                        className="text-sm text-purple-600 dark:text-purple-400 hover:underline"
+                      >
+                        + Add Accessory
+                      </button>
+                    </div>
+
+                    {programAccessoryExercises.length === 0 ? (
+                      <p className="text-xs text-zinc-500">Optional: add accessory work without weight.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {programAccessoryExercises.map((ex, index) => (
+                          <div key={index} className="p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                              <select
+                                value={ex.exerciseId}
+                                onChange={(e) => updateAccessoryExerciseRow(index, 'exerciseId', e.target.value)}
+                                className="md:col-span-2 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                              >
+                                <option value="">Select exercise...</option>
+                                {exercises.map((exercise) => (
+                                  <option key={exercise.id} value={exercise.id}>
+                                    {exercise.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <input
+                                type="number"
+                                value={ex.sets || ''}
+                                onChange={(e) => updateAccessoryExerciseRow(index, 'sets', parseInt(e.target.value, 10) || 0)}
+                                placeholder="Sets"
+                                min="1"
+                                className="px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                              />
+                              <input
+                                type="number"
+                                value={ex.reps || ''}
+                                onChange={(e) => updateAccessoryExerciseRow(index, 'reps', parseInt(e.target.value, 10) || 0)}
+                                placeholder="Reps"
+                                min="1"
+                                className="px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                              />
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  value={ex.weight ?? ''}
+                                  onChange={(e) =>
+                                    updateAccessoryExerciseRow(
+                                      index,
+                                      'weight',
+                                      e.target.value === '' ? null : parseFloat(e.target.value)
+                                    )
+                                  }
+                                  placeholder="Weight (kg)"
+                                  min="0"
+                                  step="0.5"
+                                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeAccessoryExerciseRow(index)}
+                                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Exercises (sets/reps)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={addCustomExerciseRow}
+                      className="text-sm text-purple-600 dark:text-purple-400 hover:underline"
+                    >
+                      + Add Exercise
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {programCustomExercises.map((ex, index) => (
+                      <div key={index} className="p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                          <select
+                            value={ex.exerciseId}
+                            onChange={(e) => updateCustomExerciseRow(index, 'exerciseId', e.target.value)}
+                            className="md:col-span-2 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                          >
+                            <option value="">Select exercise...</option>
+                            {exercises.map((exercise) => (
+                              <option key={exercise.id} value={exercise.id}>
+                                {exercise.name}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            value={ex.sets || ''}
+                            onChange={(e) => updateCustomExerciseRow(index, 'sets', parseInt(e.target.value, 10) || 0)}
+                            placeholder="Sets"
+                            min="1"
+                            className="px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                          />
+                          <input
+                            type="number"
+                            value={ex.reps || ''}
+                            onChange={(e) => updateCustomExerciseRow(index, 'reps', parseInt(e.target.value, 10) || 0)}
+                            placeholder="Reps"
+                            min="1"
+                            className="px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                          />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              value={ex.weight ?? ''}
+                              onChange={(e) =>
+                                updateCustomExerciseRow(
+                                  index,
+                                  'weight',
+                                  e.target.value === '' ? null : parseFloat(e.target.value)
+                                )
+                              }
+                              placeholder="Weight (kg)"
+                              min="0"
+                              step="0.5"
+                              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                            />
+                            {programCustomExercises.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeCustomExerciseRow(index)}
+                                className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex space-x-3">
                 <button
@@ -241,7 +534,7 @@ export default function ProgramsPage() {
                   type="submit"
                   className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 >
-                  Generate Program
+                  Save Program
                 </button>
               </div>
             </form>
@@ -256,6 +549,9 @@ export default function ProgramsPage() {
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{selectedProgram.name}</h2>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-300">
+                  {formatProgramType(selectedProgram.type)}
+                </p>
                 {selectedProgram.description && (
                   <p className="text-zinc-600 dark:text-zinc-400 mt-1">{selectedProgram.description}</p>
                 )}
@@ -271,59 +567,93 @@ export default function ProgramsPage() {
             </div>
 
             <div className="space-y-8">
-              {selectedProgram.exercises.map((exercise) => {
-                const weeks = generate531Program(exercise.oneRepMax)
-                return (
-                  <div key={exercise.id} className="border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden">
-                    <div className="bg-purple-50 dark:bg-purple-950 px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
-                      <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">{exercise.exercise.name}</h3>
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                        1RM: {exercise.oneRepMax}kg • Training Max: {exercise.trainingMax}kg (90%)
-                      </p>
-                    </div>
+              {selectedProgram.type === '531' ? (
+                <>
+                  {mainProgramExercises.map((exercise) => {
+                    const baseMax = exercise.oneRepMax || (exercise.trainingMax ? exercise.trainingMax / 0.9 : 0)
+                    const weeks = generate531Program(baseMax)
+                    return (
+                      <div key={exercise.id} className="border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden">
+                        <div className="bg-purple-50 dark:bg-purple-950 px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
+                          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">{exercise.exercise.name}</h3>
+                          <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                            1RM: {exercise.oneRepMax ?? '-'}kg - Training Max: {exercise.trainingMax ?? '-'}kg (90%)
+                          </p>
+                        </div>
 
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                              Week
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                              Set 1
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                              Set 2
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                              Set 3
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white dark:bg-zinc-800 divide-y divide-zinc-200 dark:divide-zinc-700">
-                          {weeks.map((week) => (
-                            <tr key={week.week}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                                Week {week.week} {week.week === 4 && <span className="text-zinc-500 dark:text-zinc-400">(Deload)</span>}
-                              </td>
-                              {week.sets.map((set, idx) => (
-                                <td key={idx} className="px-6 py-4 whitespace-nowrap text-sm text-zinc-700 dark:text-zinc-300">
-                                  <div className="font-medium">{set.weight}kg</div>
-                                  <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                                    {set.reps} reps ({set.percentage}%)
-                                  </div>
-                                </td>
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                                  Week
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                                  Set 1
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                                  Set 2
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                                  Set 3
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-zinc-800 divide-y divide-zinc-200 dark:divide-zinc-700">
+                              {weeks.map((week) => (
+                                <tr key={week.week}>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                                    Week {week.week} {week.week === 4 && <span className="text-zinc-500 dark:text-zinc-400">(Deload)</span>}
+                                  </td>
+                                  {week.sets.map((set, idx) => (
+                                    <td key={idx} className="px-6 py-4 whitespace-nowrap text-sm text-zinc-700 dark:text-zinc-300">
+                                      <div className="font-medium">{set.weight}kg</div>
+                                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                                        {set.reps} reps ({set.percentage}%)
+                                      </div>
+                                    </td>
+                                  ))}
+                                </tr>
                               ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )
+                  })}
 
+                  {accessoryProgramExercises.length > 0 && (
+                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-5">
+                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-3">Accessories</h3>
+                      <div className="space-y-2">
+                        {accessoryProgramExercises.map((exercise) => (
+                          <div key={exercise.id} className="flex items-center justify-between text-sm">
+                            <span className="text-zinc-900 dark:text-zinc-50">{exercise.exercise.name}</span>
+                            <span className="text-zinc-600 dark:text-zinc-400">
+                              {exercise.sets}x{exercise.reps} - {exercise.weight == null ? 'BW' : `${exercise.weight}kg`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-5">
+                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-3">Program Structure</h3>
+                  <div className="space-y-2">
+                    {selectedProgram.exercises.map((exercise) => (
+                      <div key={exercise.id} className="flex items-center justify-between text-sm">
+                        <span className="text-zinc-900 dark:text-zinc-50">{exercise.exercise.name}</span>
+                        <span className="text-zinc-600 dark:text-zinc-400">
+                          {formatExerciseSummary(exercise)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => handleDelete(selectedProgram.id)}
@@ -348,7 +678,7 @@ export default function ProgramsPage() {
           <Calculator className="h-16 w-16 mx-auto mb-4 text-zinc-400" />
           <h3 className="text-xl font-semibold mb-2 text-zinc-900 dark:text-zinc-50">No programs yet</h3>
           <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-            Create your first 5/3/1 program based on your one-rep maxes
+            Create your first program (5/3/1, custom, or hypertrophy)
           </p>
           <button
             onClick={() => setIsFormOpen(true)}
@@ -367,6 +697,9 @@ export default function ProgramsPage() {
               className="p-6 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 hover:border-purple-300 dark:hover:border-purple-600 transition-colors cursor-pointer"
             >
               <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">{program.name}</h3>
+              <p className="text-[11px] uppercase font-semibold tracking-wide text-purple-600 dark:text-purple-300 mb-2">
+                {formatProgramType(program.type)}
+              </p>
               {program.description && (
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">{program.description}</p>
               )}
@@ -375,7 +708,7 @@ export default function ProgramsPage() {
                 {program.exercises.map((ex) => (
                   <div key={ex.id} className="flex justify-between items-center text-sm">
                     <span className="text-zinc-900 dark:text-zinc-50">{ex.exercise.name}</span>
-                    <span className="text-zinc-600 dark:text-zinc-400">1RM: {ex.oneRepMax}kg</span>
+                    <span className="text-zinc-600 dark:text-zinc-400">{formatExerciseSummary(ex)}</span>
                   </div>
                 ))}
               </div>
@@ -386,3 +719,4 @@ export default function ProgramsPage() {
     </div>
   )
 }
+

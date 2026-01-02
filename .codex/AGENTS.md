@@ -1,128 +1,206 @@
 # AGENTS.md - Next.js Project Contributor Guide
 
-Welcome to this Next.js/TypeScript project repository. This guide highlights the structure, workflows, and expectations that match how the code currently lives on disk.
+Welcome to this Next.js/TypeScript project repository. This guide explains not only how the code is structured, but also **what the product is**, how the **training domain works**, and the **rules behind the workout generator**.
+
+---
+
+## Product intent (north star)
+
+This project is a **workout tracking and auto-workout generation app**.
+
+Primary goals:
+
+* Track workouts, exercises, and long-term progress (including PRs).
+* Generate suggested training sessions automatically based on user preferences.
+* Support periodized training (hypertrophy, strength, power, deload) while remaining simple to execute in practice.
+
+**Core design principle:**
+
+> Compound lifts anchor sessions. Accessories exist to support compounds.
+
+---
+
+## Domain vocabulary
+
+The following terms have specific meaning in this app and should be used consistently.
+
+* **Compound**: Multi-joint lift that anchors a session (e.g. Squat, Bench Press, Deadlift, Overhead Press, Rows, Pull-ups).
+* **Accessory**: Support or isolation exercise used for volume, balance, aesthetics, and injury prevention.
+* **Exercise role**:
+
+  * `main_compound`: Primary anchor lift of the session (first heavy lift).
+  * `secondary_compound`: Supporting compound lift with less CNS stress.
+  * `accessory`: Isolation, health, or volume work.
+* **Movement patterns**: `squat | hinge | push | pull | carry | core`.
+* **Training phases**: `hypertrophy | strength | power | deload`.
+
+---
 
 ## Repository overview
-- **App directory**: `app/` houses the App Router routes, layouts, and the `api/` handlers for the JSON endpoints you see (all TypeScript `route.ts` files).
-- **Library**: `lib/` contains shared utilities such as Prisma helpers and the database connection helper.
-- **Database schema**: `prisma/` keeps the Prisma schema, migrations, and seeds used to drive the SQLite database.
-- **Public assets**: `public/` is where static files (icons, images) live; the app references the favicon and other assets from here.
-- **Server**: `server/index.js` still exists for any legacy standalone server logic or API mocks alongside the Next frontend.
-- **Configuration**: The project relies on `next.config.ts`, `postcss.config.mjs`, `tsconfig.json`, `next-env.d.ts`, and `.env.local` for environment variables.
+
+* **App directory**: `app/` houses App Router routes, layouts, and API handlers (`route.ts`).
+* **Library**: `lib/` contains shared utilities and domain logic.
+* **Domain logic**: `lib/domain/` contains workout generator rules, mappings, and constraints.
+* **Database schema**: `prisma/` contains the Prisma schema, migrations, and seeds (SQLite).
+* **Public assets**: `public/` contains static assets.
+* **Server**: `server/index.js` holds any legacy or standalone server logic.
+* **Configuration**: `next.config.ts`, `postcss.config.mjs`, `tsconfig.json`, `next-env.d.ts`, `.env.local`.
+
+---
 
 ## Local workflow
+
 1. Install dependencies:
+
    ```bash
    npm install
    ```
-2. Create an `.env.local` file if it’s missing and set `DATABASE_URL`. Right now the repo ships a working `.env.local`, but if you need to re-create it, set it to `DATABASE_URL=file:./dev.db`.
-3. Initialize or seed the database once:
+2. Ensure `.env.local` exists with:
+
+   ```env
+   DATABASE_URL=file:./dev.db
+   ```
+3. Initialize or seed the database:
+
    ```bash
    node init-db.js
    ```
-4. Run the development server:
+4. Start development server:
+
    ```bash
    npm run dev
    ```
-5. Lint (only lint is wired up today):
+5. Lint:
+
    ```bash
    npm run lint
    ```
-6. For production checks, build and start:
+6. Production build:
+
    ```bash
    npm run build
    npm run start
    ```
 
+---
+
+## Workout generator rules
+
+These rules define how sessions are generated and must be respected by all contributors.
+
+### Session structure (default)
+
+* 1 × `main_compound`
+* 1–2 × `secondary_compound` (optional, phase/time dependent)
+* 2–4 × `accessory`
+
+### Accessory selection
+
+* Accessories are selected via an explicit `accessoryMap` tied to the main compound.
+* Accessories are grouped as `primary`, `secondary`, and `optional`.
+* At least one health/balance movement should be included when relevant (e.g. Face Pulls for upper body days).
+
+### Phase behavior
+
+* **Hypertrophy**: Higher volume, more accessories, moderate loads.
+* **Strength**: Fewer accessories, heavier compounds, longer rest.
+* **Power**: Lower volume, speed/quality focus, accessories mostly core/stability.
+* **Deload**: Reduced volume and intensity while preserving movement patterns.
+
+### Constraints
+
+* Maximum **one heavy hinge** per session (Deadlift, RDL, heavy Good Mornings).
+* Shoulder health: pressing volume should be balanced with rear delts / face pulls weekly.
+* Core exposure: minimum two core-focused movements per week.
+
+---
+
+## Data model expectations (high level)
+
+Contributors should align with these conceptual models:
+
+* **Exercise**: `id`, `name`, `category`, `movementPattern`, `equipment`, `primaryMuscles`.
+* **WorkoutSession**: `id`, `date`, `exercises`.
+* **SessionExercise**: `exerciseId`, `role`, `sets`.
+* **SetEntry**: `reps`, `weight`, `rpe`, `notes`.
+* **PR**: `exerciseId`, `type (1RM | 3RM | 5RM | time)`, `value`, `date`.
+
+The canonical exercise list is the source of truth for exercise names and IDs.
+
+---
+
 ## Testing guidelines
-- There is no automated Jest/Playwright/Vitest suite configured today; rely on manual verification and the lint step.
-- When new tests are introduced, keep them co-located with the feature (e.g., add server tests next to API route, add UI tests near the relevant `app/` slice).
-- Consider using MSW or Prisma fixtures when mocking API routes for future tests.
-- Keep accessibility and responsiveness in mind when validating UI manually.
+
+* No automated test suite is configured yet; rely on manual testing and linting.
+* When tests are introduced, keep them close to the feature they validate.
+* Prefer MSW or Prisma fixtures for API mocking.
+
+---
 
 ## Style notes
-- Use Server Components by default and add `'use client'` only when you need interactivity or client-only hooks.
-- Keep TypeScript strict; define props and response shapes as soon as you touch a module.
-- Prefer the Next.js `Image` component for remote or locally-hosted images so you get automatic optimization.
-- Follow the file-based routing conventions in the `app/` tree—each folder/route should use `page.tsx`, `layout.tsx`, and `route.ts` as needed.
-- Use `async/await` for server-side data fetching unless you have a compelling reason not to.
+
+* Use Server Components by default; add `'use client'` only when necessary.
+* Keep TypeScript strict; avoid `any`.
+* Prefer data-driven configuration over hardcoded conditionals.
+* Keep domain logic out of UI components and API route handlers.
+
+---
 
 ## Commit message format
-Use conventional commit format:
+
+Use conventional commits:
+
 ```
 type(scope): description
 ```
+
 Examples:
+
 ```
-feat(api): add workout log route
-fix(stats): correct chart domain
-refactor(db): centralize Prisma helpers
-style(ui): refresh program cards
+feat(generator): add accessory selection rules
+fix(api): validate workout payload
+refactor(domain): simplify exercise mapping
 ```
+
+---
 
 ## Pull request expectations
+
 PRs should include:
-- **Summary**: How the change affects functionality and UX
-- **Performance impact**: Any Core Web Vitals or bundle size considerations
-- **SEO considerations**: Metadata, structured data, accessibility flow
-- **Screenshots**: Visual verification for any UI changes
-- **API changes**: Notes on new/altered `route.ts` handlers
+
+* Summary of functional and UX impact
+* Performance considerations
+* Screenshots for UI changes
+* Notes on API or domain logic changes
 
 Before submitting:
-- [ ] All linting passes (`npm run lint`)
-- [ ] Build succeeds (`npm run build`)
-- [ ] Environment variables are documented (update `.env.local` if values change)
-- [ ] API routes stay strongly typed and documented
 
-## What reviewers look for
-- **Next.js patterns**: Solid App Router usage, clear transitions between Server and Client Components
-- **Performance**: Efficient data fetching, caching, and minimal bundle shifts
-- **SEO**: Metadata, headings, and accessible semantics
-- **Security**: Input validation, guards on API routes, and safe Prisma queries
-- **UX polish**: Responsive design, error states, and smooth loading states
-- **Type safety**: Avoid `any`, prefer typed Prisma models and API response shapes
+* [ ] `npm run lint` passes
+* [ ] `npm run build` succeeds
+* [ ] Domain rules respected
+* [ ] Canonical exercise list unchanged or documented
 
-## Next.js App Router best practices
-- Use Server Components by default for better performance.
-- Apply `'use client'` only when you need hooks or state on the client.
-- Provide `loading.tsx`/`error.tsx` when the feature needs them for a better UX.
-- Generate metadata per route if it adds SEO value.
-- Use Suspense boundaries and `fetch` caching for smoother data loading.
-- Explore parallel/intercepting routes only when they clarify the user flow.
+---
 
-## Data fetching strategies
-- Use Server Components for initial data loading.
-- Cache fetch calls with the new Next fetch options where appropriate.
-- Use React Query/SWR client-side when you need mutation/optimistic UI.
-- Handle fetch errors gracefully on both server and client.
-- Apply optimistic updates only when the UX clearly benefits.
-- Cache expensive operations (e.g., heavy Prisma joins) where it makes sense.
+## Contribution do / don’t
 
-## Performance optimization
-- Optimize Core Web Vitals (LCP, FID, CLS).
-- Use Next.js `Image` when media benefits from resizing/modern formats.
-- Split code with dynamic imports for heavy interactive parts.
-- Use `next/font` to load only the fonts you need.
-- Add caching headers for static assets and API responses.
-- Monitor bundle size, especially if you add new chart or icon libraries.
+**Do**:
 
-## SEO and accessibility
-- Provide metadata (Open Graph/Twitter) for public-facing routes.
-- Keep heading hierarchy logical (`h1`, `h2`, etc.).
-- Add structured data when it helps discoverability.
-- Ensure keyboard navigation and screen reader compatibility.
-- Use semantic HTML and ARIA where needed.
+* Keep workout generation deterministic with clear constraints.
+* Extend generator behavior via configuration and mappings.
+* Respect training domain rules.
 
-## API routes best practices
-- Keep HTTP methods and status codes idiomatic.
-- Validate input thoroughly before touching the database.
-- Centralize shared logic in `lib/` helpers.
-- Add logging/error handling for unexpected failures.
-- If you need auth, wrap the API route logic so it stays consistent.
-- Document expected request/response shapes in TypeScript.
+**Don’t**:
 
-## Authentication and security
-- Lean on middleware or helpers when you need auth/role control.
-- Validate inputs on both server and client sides.
-- Keep session or token handling secure.
-- Protect Prisma queries from injection/over-fetching.
+* Invent new exercise names without adding them to the canonical list.
+* Generate sessions with overlapping heavy compounds.
+* Mix UI concerns with domain logic.
+
+---
+
+## Helpful prompts for AI contributors
+
+* "Generate a workout session following generator rules for a Pull day."
+* "Add a new compound exercise and update accessoryMap accordingly."
+* "Refactor generator logic to support a new training phase."
+* "Create a typed API route for logging workout sessions."

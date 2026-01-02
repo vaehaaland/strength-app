@@ -6,9 +6,16 @@ type WorkoutPayloadExercise = {
   notes?: string
   sets?: {
     reps: number
-    weight: number
+    weight?: number | null
     rpe?: number
   }[]
+}
+type WorkoutPayload = {
+  name: string
+  date?: string
+  notes?: string
+  programId?: string | null
+  exercises?: WorkoutPayloadExercise[]
 }
 
 export async function DELETE(
@@ -33,14 +40,51 @@ export async function DELETE(
   }
 }
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+
+    const workout = await prisma.workout.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+      },
+      include: {
+        program: true,
+        exercises: {
+          include: {
+            exercise: true,
+            sets: {
+              orderBy: { setNumber: 'asc' },
+            },
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
+    })
+
+    if (!workout) {
+      return NextResponse.json({ error: 'Workout not found' }, { status: 404 })
+    }
+
+    return NextResponse.json(workout)
+  } catch (error) {
+    console.error('Failed to fetch workout:', error)
+    return NextResponse.json({ error: 'Failed to fetch workout' }, { status: 500 })
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
-    const body = await request.json()
-    const { name, date, notes, exercises } = body
+    const body: WorkoutPayload = await request.json()
+    const { name, date, notes, exercises, programId } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Workout name is required' }, { status: 400 })
@@ -54,6 +98,7 @@ export async function PUT(
         name,
         date: date ? new Date(date) : undefined,
         notes,
+        programId: programId || null,
           exercises: {
             create: exercises?.map((ex: WorkoutPayloadExercise, index: number) => ({
               exerciseId: ex.exerciseId,
@@ -63,7 +108,7 @@ export async function PUT(
                 create: ex.sets?.map((set, setIndex: number) => ({
                   setNumber: setIndex + 1,
                   reps: set.reps,
-                  weight: set.weight,
+                  weight: typeof set.weight === 'number' ? set.weight : null,
                   rpe: set.rpe,
                 })) || [],
               },
@@ -71,6 +116,7 @@ export async function PUT(
           },
       },
       include: {
+        program: true,
         exercises: {
           include: {
             exercise: true,
