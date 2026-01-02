@@ -1,0 +1,21 @@
+name: Deploy (prod)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build + restart containers
+        run: |
+          docker compose down || true
+          docker compose build --pull
+          docker compose up -d --remove-orphans
+
+      - name: Smoke test
+        run: |
+          curl -fsS http://127.0.0.1:3000/ >/dev/null
