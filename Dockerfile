@@ -33,6 +33,7 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.* ./
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/init-db.js ./
 COPY --from=builder /app/seed-db.js ./
 
