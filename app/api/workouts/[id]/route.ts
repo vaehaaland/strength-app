@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getUserFromRequest } from '@/lib/auth'
 
 type WorkoutPayloadExercise = {
   exerciseId: string
@@ -23,7 +24,22 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getUserFromRequest(request)
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { id } = await params
+
+    // Verify ownership
+    const existingWorkout = await prisma.workout.findFirst({
+      where: { id, userId: session.userId },
+    })
+
+    if (!existingWorkout) {
+      return NextResponse.json({ error: 'Workout not found' }, { status: 404 })
+    }
 
     // Soft delete
     const workout = await prisma.workout.update({
@@ -45,12 +61,19 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getUserFromRequest(request)
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { id } = await params
 
     const workout = await prisma.workout.findFirst({
       where: {
         id,
         deletedAt: null,
+        userId: session.userId,
       },
       include: {
         program: true,
@@ -82,12 +105,27 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getUserFromRequest(request)
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { id } = await params
     const body: WorkoutPayload = await request.json()
     const { name, date, notes, exercises, programId } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Workout name is required' }, { status: 400 })
+    }
+
+    // Verify ownership
+    const existingWorkout = await prisma.workout.findFirst({
+      where: { id, userId: session.userId },
+    })
+
+    if (!existingWorkout) {
+      return NextResponse.json({ error: 'Workout not found' }, { status: 404 })
     }
 
     await prisma.workoutExercise.deleteMany({ where: { workoutId: id } })

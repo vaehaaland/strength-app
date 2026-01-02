@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getUserFromRequest } from '@/lib/auth'
 
 type WorkoutSetInput = {
   reps: number
@@ -13,11 +14,18 @@ type WorkoutExerciseInput = {
   sets?: WorkoutSetInput[]
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const session = await getUserFromRequest(request)
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const workouts = await prisma.workout.findMany({
       where: {
         deletedAt: null,
+        userId: session.userId,
       },
       include: {
         program: true,
@@ -48,6 +56,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getUserFromRequest(request)
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { name, date, notes, exercises, programId } = body
 
@@ -61,6 +75,7 @@ export async function POST(request: NextRequest) {
         date: date ? new Date(date) : new Date(),
         notes,
         programId: programId || null,
+        userId: session.userId,
         exercises: {
           create: (exercises as WorkoutExerciseInput[] | undefined)?.map((ex, index: number) => ({
             exerciseId: ex.exerciseId,
