@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, Dumbbell, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
+import { Plus, Trash2, Dumbbell, ChevronDown, Search, Pencil } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface Exercise {
@@ -33,6 +33,23 @@ interface Workout {
   exercises: WorkoutExercise[]
 }
 
+interface ProgramExercise {
+  id: string
+  exerciseId: string
+  oneRepMax: number
+  trainingMax: number
+  order: number
+  exercise?: Exercise
+}
+
+interface Program {
+  id: string
+  name: string
+  type: string
+  description?: string
+  exercises: ProgramExercise[]
+}
+
 function ExerciseSelect({
   exercises,
   value,
@@ -44,14 +61,10 @@ function ExerciseSelect({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [selectedName, setSelectedName] = useState('')
   const wrapperRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const exercise = exercises.find(e => e.id === value)
-    if (exercise) setSelectedName(exercise.name)
-    else setSelectedName('')
-  }, [value, exercises])
+  const selectedExercise = exercises.find(e => e.id === value)
+  const selectedName = selectedExercise?.name || ''
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -130,8 +143,13 @@ function ExerciseSelect({
 export default function WorkoutsPage() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [exercises, setExercises] = useState<Exercise[]>([])
+  const [programs, setPrograms] = useState<Program[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [isMobile, setIsMobile] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null)
+  const [selectedProgramId, setSelectedProgramId] = useState('')
 
   // Form state
   const [workoutName, setWorkoutName] = useState('')
@@ -147,6 +165,11 @@ export default function WorkoutsPage() {
   useEffect(() => {
     fetchWorkouts()
     fetchExercises()
+    fetchPrograms()
+    const updateIsMobile = () => setIsMobile(window.innerWidth < 640)
+    updateIsMobile()
+    window.addEventListener('resize', updateIsMobile)
+    return () => window.removeEventListener('resize', updateIsMobile)
   }, [])
 
   async function fetchWorkouts() {
@@ -171,19 +194,34 @@ export default function WorkoutsPage() {
     }
   }
 
+  async function fetchPrograms() {
+    try {
+      const res = await fetch('/api/programs')
+      const data = await res.json()
+      setPrograms(data)
+    } catch (error) {
+      console.error('Failed to fetch programs:', error)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
     try {
-      const res = await fetch('/api/workouts', {
-        method: 'POST',
+      const payload = {
+        name: workoutName,
+        date: workoutDate,
+        notes: workoutNotes,
+        exercises: workoutExercises.filter(ex => ex.exerciseId),
+      }
+
+      const url = editingWorkoutId ? `/api/workouts/${editingWorkoutId}` : '/api/workouts'
+      const method = editingWorkoutId ? 'PUT' : 'POST'
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: workoutName,
-          date: workoutDate,
-          notes: workoutNotes,
-          exercises: workoutExercises.filter(ex => ex.exerciseId),
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (res.ok) {
@@ -201,6 +239,8 @@ export default function WorkoutsPage() {
     setWorkoutDate(format(new Date(), 'yyyy-MM-dd'))
     setWorkoutNotes('')
     setWorkoutExercises([{ exerciseId: '', sets: [{ reps: 10, weight: 0 }] }])
+    setEditingWorkoutId(null)
+    setSelectedProgramId('')
   }
 
   async function handleDelete(id: string) {
@@ -224,11 +264,32 @@ export default function WorkoutsPage() {
     ])
   }
 
+  function handleProgramSelect(programId: string) {
+    setSelectedProgramId(programId)
+
+    if (!programId) {
+      setWorkoutExercises([{ exerciseId: '', sets: [{ reps: 10, weight: 0 }] }])
+      return
+    }
+
+    const program = programs.find(p => p.id === programId)
+    if (!program) return
+
+    const populatedExercises = program.exercises?.map((ex: ProgramExercise) => ({
+      exerciseId: ex.exerciseId,
+      notes: '',
+      sets: [{ reps: 5, weight: ex.trainingMax || 0 }],
+    })) || []
+
+    setWorkoutName(program.name)
+    setWorkoutExercises(populatedExercises.length ? populatedExercises : [{ exerciseId: '', sets: [{ reps: 10, weight: 0 }] }])
+  }
+
   function removeExercise(index: number) {
     setWorkoutExercises(workoutExercises.filter((_, i) => i !== index))
   }
 
-  function updateExercise(index: number, field: keyof WorkoutExercise, value: any) {
+  function updateExercise(index: number, field: keyof WorkoutExercise, value: string) {
     const updated = [...workoutExercises]
     updated[index] = { ...updated[index], [field]: value }
     setWorkoutExercises(updated)
@@ -262,6 +323,27 @@ export default function WorkoutsPage() {
     setWorkoutExercises(updated)
   }
 
+  function handleEditWorkout(workout: Workout) {
+    setEditingWorkoutId(workout.id)
+    setWorkoutName(workout.name)
+    setWorkoutDate(format(new Date(workout.date), 'yyyy-MM-dd'))
+    setWorkoutNotes(workout.notes || '')
+
+    const mappedExercises: WorkoutExercise[] = workout.exercises.map(ex => ({
+      id: ex.id,
+      exerciseId: ex.exerciseId,
+      notes: ex.notes,
+      sets: ex.sets.map(set => ({
+        reps: set.reps,
+        weight: set.weight,
+        rpe: set.rpe,
+      })),
+    }))
+
+    setWorkoutExercises(mappedExercises.length ? mappedExercises : [{ exerciseId: '', sets: [{ reps: 10, weight: 0 }] }])
+    setIsFormOpen(true)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -269,6 +351,193 @@ export default function WorkoutsPage() {
       </div>
     )
   }
+
+  const filteredWorkouts = workouts.filter((workout) => {
+    if (!searchTerm) return true
+
+    const term = searchTerm.toLowerCase()
+    const matchesName = workout.name.toLowerCase().includes(term)
+    const matchesExercise = workout.exercises.some((ex) =>
+      ex.exercise?.name.toLowerCase().includes(term)
+    )
+
+    return matchesName || matchesExercise
+  })
+
+  const workoutForm = (
+    <div className={`bg-white dark:bg-zinc-800 rounded-2xl w-full ${isMobile ? '' : 'max-w-3xl max-h-[90vh] overflow-y-auto'} p-6 shadow-xl`}>
+      <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-zinc-50">Log Workout</h2>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2 text-zinc-700 dark:text-zinc-300">Program</label>
+            <select
+              value={selectedProgramId}
+              onChange={(e) => handleProgramSelect(e.target.value)}
+              className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">No program</option>
+              {programs.map((program) => (
+                <option key={program.id} value={program.id}>
+                  {program.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2 text-zinc-700 dark:text-zinc-300">
+              Workout Name *
+            </label>
+            <input
+              type="text"
+              value={workoutName}
+              onChange={(e) => setWorkoutName(e.target.value)}
+              required
+              className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="e.g., Upper Body Push"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2 text-zinc-700 dark:text-zinc-300">
+              Date
+            </label>
+            <input
+              type="date"
+              value={workoutDate}
+              onChange={(e) => setWorkoutDate(e.target.value)}
+              className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2 text-zinc-700 dark:text-zinc-300">
+            Notes
+          </label>
+          <textarea
+            value={workoutNotes}
+            onChange={(e) => setWorkoutNotes(e.target.value)}
+            rows={2}
+            className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="How did the workout feel?"
+          />
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Exercises</h3>
+            <button
+              type="button"
+              onClick={addExercise}
+              className="flex items-center space-x-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Exercise</span>
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {workoutExercises.map((ex, exerciseIndex) => (
+              <div key={exerciseIndex} className="p-4 border border-zinc-200 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-zinc-900/50">
+                <div className="flex justify-between items-start mb-4">
+                  <ExerciseSelect
+                    exercises={exercises}
+                    value={ex.exerciseId}
+                    onChange={(val) => updateExercise(exerciseIndex, 'exerciseId', val)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeExercise(exerciseIndex)}
+                    className="ml-2 p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                    title="Remove Exercise"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="grid grid-cols-10 gap-2 mb-1 px-1">
+                    <div className="col-span-1 text-xs font-medium text-zinc-500 text-center">Set</div>
+                    <div className="col-span-4 text-xs font-medium text-zinc-500">Weight (kg)</div>
+                    <div className="col-span-4 text-xs font-medium text-zinc-500">Reps</div>
+                    <div className="col-span-1"></div>
+                  </div>
+
+                  {ex.sets.map((set, setIndex) => (
+                    <div key={setIndex} className="grid grid-cols-10 gap-2 items-center">
+                      <div className="col-span-1 flex items-center justify-center">
+                        <span className="text-sm font-medium text-zinc-400 bg-zinc-200 dark:bg-zinc-800 rounded-full w-6 h-6 flex items-center justify-center">
+                          {setIndex + 1}
+                        </span>
+                      </div>
+                      <div className="col-span-4">
+                        <input
+                          type="number"
+                          value={set.weight}
+                          onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', parseFloat(e.target.value))}
+                          min="0"
+                          step="0.5"
+                          className="w-full px-2 py-1 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm text-center"
+                        />
+                      </div>
+                      <div className="col-span-4">
+                        <input
+                          type="number"
+                          value={set.reps}
+                          onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', parseInt(e.target.value))}
+                          min="1"
+                          className="w-full px-2 py-1 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm text-center"
+                        />
+                      </div>
+                      <div className="col-span-1 flex justify-center">
+                        {ex.sets.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeSet(exerciseIndex, setIndex)}
+                            className="text-zinc-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => addSet(exerciseIndex)}
+                  className="mt-3 text-xs flex items-center space-x-1 text-blue-600 dark:text-blue-400 hover:underline px-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>Add Set</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex space-x-3 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+          <button
+            type="button"
+            onClick={() => setIsFormOpen(false)}
+            className="flex-1 px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            {editingWorkoutId ? 'Update Workout' : 'Save Workout'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
 
   return (
     <div className="space-y-6">
@@ -283,166 +552,38 @@ export default function WorkoutsPage() {
         </button>
       </div>
 
-      {/* Workout Form Modal */}
-      {/* TODO: Add program support. The point of setting up programs is that I can choose to follow a program, which will then generate workouts for me. While also being able to adjust the exercises, weights and reps for each workout. Selecting a program will populate the form with the exercises from the program. */}
-      {/* TODO: Mobile version of logging a workout should be different. Probably its own page. This is because I am using the site to log workouts & follow my program while I am at the gym. It would then also be nice to see things like what reps and weight did I lift the last time I logged deadlift. And the stats would be set specific. So set 1 on the LIVE workout would compare to last time I logged deadlift. */}
-      {isFormOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-800 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
-            <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-zinc-50">Log Workout</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-zinc-700 dark:text-zinc-300">
-                    Workout Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={workoutName}
-                    onChange={(e) => setWorkoutName(e.target.value)}
-                    required
-                    className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., Upper Body Push"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-zinc-700 dark:text-zinc-300">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={workoutDate}
-                    onChange={(e) => setWorkoutDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 text-zinc-700 dark:text-zinc-300">
-                  Notes
-                </label>
-                <textarea
-                  value={workoutNotes}
-                  onChange={(e) => setWorkoutNotes(e.target.value)}
-                  rows={2}
-                  className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="How did the workout feel?"
-                />
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Exercises</h3>
-                  <button
-                    type="button"
-                    onClick={addExercise}
-                    className="flex items-center space-x-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Add Exercise</span>
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {workoutExercises.map((ex, exerciseIndex) => (
-                    <div key={exerciseIndex} className="p-4 border border-zinc-200 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-zinc-900/50">
-                      <div className="flex justify-between items-start mb-4">
-                        <ExerciseSelect
-                          exercises={exercises}
-                          value={ex.exerciseId}
-                          onChange={(val) => updateExercise(exerciseIndex, 'exerciseId', val)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeExercise(exerciseIndex)}
-                          className="ml-2 p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                          title="Remove Exercise"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-10 gap-2 mb-1 px-1">
-                          <div className="col-span-1 text-xs font-medium text-zinc-500 text-center">Set</div>
-                          <div className="col-span-4 text-xs font-medium text-zinc-500">Weight (kg)</div>
-                          <div className="col-span-4 text-xs font-medium text-zinc-500">Reps</div>
-                          <div className="col-span-1"></div>
-                        </div>
-
-                        {ex.sets.map((set, setIndex) => (
-                          <div key={setIndex} className="grid grid-cols-10 gap-2 items-center">
-                            <div className="col-span-1 flex items-center justify-center">
-                              <span className="text-sm font-medium text-zinc-400 bg-zinc-200 dark:bg-zinc-800 rounded-full w-6 h-6 flex items-center justify-center">
-                                {setIndex + 1}
-                              </span>
-                            </div>
-                            <div className="col-span-4">
-                              <input
-                                type="number"
-                                value={set.weight}
-                                onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', parseFloat(e.target.value))}
-                                min="0"
-                                step="0.5"
-                                className="w-full px-2 py-1 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm text-center"
-                              />
-                            </div>
-                            <div className="col-span-4">
-                              <input
-                                type="number"
-                                value={set.reps}
-                                onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', parseInt(e.target.value))}
-                                min="1"
-                                className="w-full px-2 py-1 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm text-center"
-                              />
-                            </div>
-                            <div className="col-span-1 flex justify-center">
-                              {ex.sets.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => removeSet(exerciseIndex, setIndex)}
-                                  className="text-zinc-400 hover:text-red-500 transition-colors"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => addSet(exerciseIndex)}
-                        className="mt-3 text-xs flex items-center space-x-1 text-blue-600 dark:text-blue-400 hover:underline px-1"
-                      >
-                        <Plus className="h-3 w-3" />
-                        <span>Add Set</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex space-x-3 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-                <button
-                  type="button"
-                  onClick={() => setIsFormOpen(false)}
-                  className="flex-1 px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Save Workout
-                </button>
-              </div>
-            </form>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {editingWorkoutId && (
+            <span className="text-sm px-2 py-1 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">Editing workout</span>
+          )}
+          {selectedProgramId && (
+            <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200">Program: {programs.find(p => p.id === selectedProgramId)?.name}</span>
+          )}
         </div>
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search workouts or exercises"
+            className="w-full pl-10 pr-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+
+      {/* Workout Form Modal */}
+      {isFormOpen && (
+        isMobile ? (
+          <div className="bg-white dark:bg-zinc-900/60 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-2">
+            {workoutForm}
+          </div>
+        ) : (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            {workoutForm}
+          </div>
+        )
       )}
 
       {/* Workouts List */}
@@ -461,11 +602,14 @@ export default function WorkoutsPage() {
             <span>Log Your First Workout</span>
           </button>
         </div>
+      ) : filteredWorkouts.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700">
+          <h3 className="text-xl font-semibold mb-2 text-zinc-900 dark:text-zinc-50">No matching workouts</h3>
+          <p className="text-zinc-600 dark:text-zinc-400">Try adjusting your search.</p>
+        </div>
       ) : (
-        // TODO: Enable editability of workouts
-        // TODO: Add search functionality
         <div className="space-y-4">
-          {workouts.map((workout) => (
+          {filteredWorkouts.map((workout) => (
             <div
               key={workout.id}
               className="p-6 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors shadow-sm"
@@ -477,17 +621,26 @@ export default function WorkoutsPage() {
                     {format(new Date(workout.date), 'PPP')}
                   </p>
                 </div>
-                <button
-                  onClick={() => handleDelete(workout.id)}
-                  className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleEditWorkout(workout)}
+                    className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors"
+                    title="Edit workout"
+                  >
+                    <Pencil className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(workout.id)}
+                    className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
 
               {workout.notes && (
                 <p className="text-sm text-zinc-700 dark:text-zinc-300 mb-6 italic bg-zinc-50 dark:bg-zinc-900/50 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800">
-                  "{workout.notes}"
+                  {workout.notes}
                 </p>
               )}
 
