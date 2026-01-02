@@ -523,7 +523,10 @@ export default function WorkoutsPage() {
         <div className="flex space-x-3 pt-4 border-t border-zinc-200 dark:border-zinc-700">
           <button
             type="button"
-            onClick={() => setIsFormOpen(false)}
+            onClick={() => {
+              resetForm()
+              setIsFormOpen(false)
+            }}
             className="flex-1 px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
           >
             Cancel
