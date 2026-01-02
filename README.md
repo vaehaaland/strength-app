@@ -196,6 +196,28 @@ Build workflow:
 
 Future cleanups can progressively migrate the DOM-driven UI in `public/app.js` into React components while reusing the current API routes.
 
+### GitHub Actions CI/CD
+
+The repository includes automated workflows for continuous integration and deployment:
+
+#### CI Workflow (`ci.yml`)
+Runs on all pull requests and pushes to main:
+- Installs dependencies
+- Runs ESLint for code quality checks
+- Builds the Next.js application
+- Runs tests
+
+This workflow ensures all code changes can be built successfully before merging to main.
+
+#### Deploy Workflow (`deploy.yml`)
+Runs on pushes to the main branch:
+- Performs all CI checks
+- Builds the production Next.js application
+- Uploads build artifacts for deployment
+- Artifacts are retained for 7 days
+
+These workflows help maintain code quality and provide a stable deployment process.
+
 ## Security Considerations
 
 This application is designed for local/homelab use. If deploying to a public-facing server, consider adding:
