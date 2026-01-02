@@ -1,22 +1,20 @@
-# 💪 Strength Tracker
+# strength-app
 
-A modern Progressive Web App (PWA) for tracking workouts, health stats, and managing training programs. Built with a mobile-first approach, perfect for use on smartphones while also functional on desktop computers.
+A comprehensive workout tracking application built with Next.js 16, featuring 5/3/1 program generation, body metrics tracking, and progress visualization.
 
 ## Features
 
-- **Workout Logging**: Track sets, reps, and weights for each exercise
-- **Training Programs**: Create custom workout programs or use the built-in 5/3/1 template
-- **Health Stats**: Monitor body weight and body fat percentage over time
-- **5/3/1 Support**: Pre-configured template for the popular 5/3/1 strength program
-- **Progressive Web App**: Install on mobile devices and use offline
-- **Mobile-First Design**: Optimized for smartphone use with responsive desktop support
-- **Local Database**: All data stored locally using SQLite
+- 📝 **Workout Logging**: Track exercises, sets, reps, and weights
+- 📊 **5/3/1 Program Generator**: Create personalized strength programs based on your 1RM
+- 📈 **Progress Tracking**: Visualize strength trends, body weight, and body fat percentage
+- 🎨 **Modern UI**: Clean, responsive design optimized for mobile and desktop
+- 📱 **PWA Ready**: Installable as a progressive web app
+- 🗑️ **Soft Deletes**: Safely remove workouts and programs without permanent data loss
 
 ## Quick Start
 
 ### Prerequisites
-
-- Node.js 18.17+ (or newer LTS)
+- Node.js 20.x or higher
 - npm
 
 ### Installation
@@ -32,205 +30,87 @@ cd strength-app
 npm install
 ```
 
-3. Start the Next.js dev server:
+3. Initialize the database:
+```bash
+node init-db.js
+```
+
+4. Start the development server:
 ```bash
 npm run dev
 ```
 
-4. Open your browser and navigate to:
-```
-http://localhost:3000
-```
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-5. For a production build:
+## Database
+
+The app uses SQLite with Prisma ORM. The database is automatically created with 12 pre-seeded exercises when you run `init-db.js`:
+
+**Compound Exercises:**
+- Squat
+- Bench Press
+- Deadlift
+- Overhead Press
+- Barbell Row
+- Front Squat
+- Incline Bench Press
+
+**Accessory Exercises:**
+- Romanian Deadlift
+- Pull-ups
+- Dips
+- Lunges
+- Leg Press
+
+## Building for Production
+
 ```bash
 npm run build
 npm start
 ```
 
-### For Homelab Deployment
+## Tech Stack
 
-The app runs on port 3000 by default. You can change this by setting the PORT environment variable:
-
-```bash
-PORT=8080 npm start
-```
-
-To run in production mode behind a reverse proxy (nginx, Apache, Caddy, etc.), configure your proxy to forward requests to `http://localhost:3000`.
-
-Example Caddy configuration:
-```
-strength.yourdomain.com {
-    reverse_proxy localhost:3000
-}
-```
-
-Example nginx configuration:
-```nginx
-server {
-    server_name strength.yourdomain.com;
-    
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
+- **Framework**: Next.js 16.1.1 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **Database**: SQLite with Prisma ORM 5.22.0
+- **Charts**: Recharts
+- **Icons**: Lucide React
+- **Date Handling**: date-fns
 
 ## Usage
 
-### Creating a 5/3/1 Program
+### Logging Workouts
+1. Navigate to the "Workouts" page
+2. Click "Log Workout"
+3. Enter workout name, date, and exercises
+4. Save your workout
 
-1. Navigate to the **Programs** tab
-2. Click **Create 5/3/1 Program**
-3. Select your main lifts (Squat, Bench Press, Deadlift, Overhead Press)
-4. Click **Create 5/3/1 Program**
+### Creating 5/3/1 Programs
+1. Navigate to the "Programs" page
+2. Click "Create Program"
+3. Enter program name and your 1RM for each exercise
+4. View the generated 4-week cycle with calculated weights
 
-The app will automatically create a 4-day program with appropriate sets and rep schemes.
-
-### Logging a Workout
-
-1. Navigate to the **Workouts** tab
-2. Click **Start Workout**
-3. Select a program workout or create a custom workout
-4. Enter sets, reps, and weights for each exercise
-5. Check off completed sets
-6. Click **Complete Workout** when finished
-
-### Tracking Health Stats
-
-1. Navigate to the **Stats** tab
-2. Click **Add Entry**
-3. Enter your weight, body fat percentage, and any notes
-4. Click **Save Stats**
-
-## Project Structure
-
-```
-strength-app/
-├── app/
-│   ├── api/              # Next.js route handlers (replaces Express API)
-│   ├── head.js           # (Optional) document <head> metadata (CSS is not loaded here in the App Router)
-│   ├── layout.js         # App Router root layout & metadata; imports global CSS/styles
-│   └── page.jsx          # Main UI shell that mounts the existing JS app
-├── lib/
-│   └── db.js             # Shared SQLite connection & schema setup
-├── public/
-│   ├── style.css         # Styles (still served for the PWA + service worker)
-│   ├── app.js            # Frontend JavaScript (runs in the Next.js page)
-│   ├── manifest.json     # PWA manifest
-│   ├── sw.js             # Service worker for offline functionality
-│   └── icon-*.svg        # App icons
-├── server/               # Legacy Express server (kept for reference)
-├── jsconfig.json         # Path aliases for @/* imports
-├── package.json
-└── README.md
-```
-
-## Database Schema
-
-The app uses SQLite with the following tables:
-
-- **exercises**: Available exercises
-- **workout_programs**: Training programs
-- **program_workouts**: Workouts within programs
-- **program_exercises**: Exercises within workouts
-- **workout_logs**: Logged workout sessions
-- **exercise_logs**: Individual set logs
-- **health_stats**: Body measurements over time
-
-## API Endpoints
-
-### Exercises
-- `GET /api/exercises` - List all exercises
-- `POST /api/exercises` - Create new exercise
-- `GET /api/exercises/:id` - Get exercise details
-
-### Programs
-- `GET /api/programs` - List all programs
-- `POST /api/programs` - Create new program
-- `GET /api/programs/:id` - Get program with workouts
-- `POST /api/programs/:id/workouts` - Add workout to program
-- `POST /api/program-workouts/:id/exercises` - Add exercise to workout
-
-### Workout Logs
-- `GET /api/workout-logs` - List recent workout logs
-- `POST /api/workout-logs` - Create new workout log
-- `GET /api/workout-logs/:id` - Get workout log details
-- `PUT /api/workout-logs/:id` - Update workout log
-- `POST /api/workout-logs/:id/exercises` - Log exercise set
-
-### Health Stats
-- `GET /api/health-stats` - List health stats
-- `POST /api/health-stats` - Add new health stat entry
-
-## Mobile Installation
-
-### iOS (iPhone/iPad)
-1. Open the app in Safari
-2. Tap the Share button
-3. Scroll down and tap "Add to Home Screen"
-4. Tap "Add"
-
-### Android
-1. Open the app in Chrome
-2. Tap the menu button (three dots)
-3. Tap "Add to Home screen"
-4. Tap "Add"
+### Tracking Progress
+1. Navigate to the "Stats" page
+2. Click "Log Body Metrics" to add body weight and body fat data
+3. View charts showing your progress over time
 
 ## Development
 
-The app is built with:
-- **Runtime**: Next.js (App Router) + React 18
-- **API**: Next.js route handlers backed by SQLite (see `app/api/*`)
-- **Frontend**: Existing vanilla JS UI mounted in `app/page.jsx` with shared styling served from `public/style.css`
-- **PWA**: Service Worker and Web App Manifest served from `public/`
+```bash
+# Run development server
+npm run dev
 
-Build workflow:
-- `npm run dev` to develop with hot reload on port 3000
-- `npm run build && npm start` for production
+# Build for production
+npm run build
 
-Future cleanups can progressively migrate the DOM-driven UI in `public/app.js` into React components while reusing the current API routes.
-
-### GitHub Actions CI/CD
-
-The repository includes automated workflows for continuous integration and deployment:
-
-#### CI Workflow (`ci.yml`)
-Runs on all pull requests and pushes to main:
-- Installs dependencies
-- Runs ESLint for code quality checks
-- Builds the Next.js application
-- Runs tests
-
-This workflow ensures all code changes can be built successfully before merging to main.
-
-#### Deploy Workflow (`deploy.yml`)
-Runs on pushes to the main branch:
-- Performs all CI checks
-- Builds the production Next.js application
-- Uploads build artifacts for deployment
-- Artifacts are retained for 7 days
-
-These workflows help maintain code quality and provide a stable deployment process.
-
-## Security Considerations
-
-This application is designed for local/homelab use. If deploying to a public-facing server, consider adding:
-- Rate limiting middleware (e.g., express-rate-limit)
-- Authentication and authorization
-- HTTPS/TLS encryption
-- Input sanitization beyond basic validation
-- CSRF protection
+# Run linter
+npm run lint
+```
 
 ## License
 
 MIT
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
