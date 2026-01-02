@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Link from "next/link";
 import { Dumbbell } from "lucide-react";
@@ -7,13 +7,18 @@ export const metadata: Metadata = {
   title: "Strength Tracker - Workout & Program Manager",
   description: "Track your workouts, manage 5/3/1 programs, and monitor your strength progress",
   manifest: "/manifest.json",
-  themeColor: "#0a0a0a",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Strength Tracker",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({

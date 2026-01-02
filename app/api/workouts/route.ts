@@ -11,6 +11,14 @@ export async function GET() {
         exercises: {
           include: {
             exercise: true,
+            sets: {
+              orderBy: {
+                setNumber: 'asc',
+              },
+            },
+          },
+          orderBy: {
+            order: 'asc',
           },
         },
       },
@@ -40,12 +48,18 @@ export async function POST(request: NextRequest) {
         date: date ? new Date(date) : new Date(),
         notes,
         exercises: {
-          create: exercises?.map((ex: any) => ({
+          create: exercises?.map((ex: any, index: number) => ({
             exerciseId: ex.exerciseId,
-            sets: ex.sets,
-            reps: ex.reps,
-            weight: ex.weight,
+            order: index,
             notes: ex.notes,
+            sets: {
+              create: ex.sets?.map((set: any, setIndex: number) => ({
+                setNumber: setIndex + 1,
+                reps: set.reps,
+                weight: set.weight,
+                rpe: set.rpe,
+              })) || [],
+            },
           })) || [],
         },
       },
@@ -53,6 +67,14 @@ export async function POST(request: NextRequest) {
         exercises: {
           include: {
             exercise: true,
+            sets: {
+              orderBy: {
+                setNumber: 'asc',
+              },
+            },
+          },
+          orderBy: {
+            order: 'asc',
           },
         },
       },

@@ -272,6 +272,7 @@ export default function StatsPage() {
       </div>
 
       {/* Body Weight & Body Fat Chart */}
+      {/* TODO: Add seperate y-axes for weight and body fat */}
       {bodyMetricsData.length > 0 && (
         <div className="p-6 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700">
           <h2 className="text-xl font-bold mb-6 text-zinc-900 dark:text-zinc-50">Body Composition Progress</h2>
