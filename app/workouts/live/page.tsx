@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -106,6 +106,14 @@ function buildFromProgram(program: Program, week: number): LiveExercise[] {
 }
 
 export default function LiveWorkoutPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-zinc-600 dark:text-zinc-400">Loading…</div>}>
+      <LiveWorkoutPageClient />
+    </Suspense>
+  )
+}
+
+function LiveWorkoutPageClient() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [selectedProgramId, setSelectedProgramId] = useState('')
