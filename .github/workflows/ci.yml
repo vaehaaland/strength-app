@@ -27,7 +27,9 @@ jobs:
         run: npm ci
 
       - name: Run ESLint
-        run: npm run lint || echo "Linting failed but continuing..."
+        # Allow linting to fail but still show the results
+        # TODO: Fix existing lint errors and remove continue-on-error
+        run: npm run lint
         continue-on-error: true
 
       - name: Build Next.js app
