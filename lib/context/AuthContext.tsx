@@ -23,8 +23,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+    
     // Load token from localStorage on mount
     const storedToken = localStorage.getItem('authToken')
     if (storedToken) {
@@ -34,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setIsLoading(false)
     }
-  }, [])
+  }, [mounted])
 
   const fetchCurrentUser = async (authToken: string) => {
     try {
@@ -115,6 +122,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext)
   if (context === undefined) {
+    // During SSR, return a default state
+    if (typeof window === 'undefined') {
+      return {
+        user: null,
+        token: null,
+        login: async () => {},
+        register: async () => {},
+        logout: () => {},
+        isLoading: true,
+      }
+    }
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context

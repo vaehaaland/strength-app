@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/context/AuthContext'
 
+export const dynamic = 'force-dynamic'
+
 export default function RegisterPage() {
   const router = useRouter()
   const { register } = useAuth()
