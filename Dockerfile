@@ -1,24 +1,18 @@
 # ---------- deps ----------
 FROM node:20-alpine AS deps
 WORKDIR /app
-
-# Install OpenSSL 3.x for Prisma
-RUN apk add --no-cache openssl
-
 COPY package*.json ./
+# Alpine 3.23 (node:20-alpine) includes OpenSSL 3.x by default (libssl3, libcrypto3)
+# No need to install additional packages - Prisma will use these with the correct binaryTarget
 RUN npm ci
 
 # ---------- builder ----------
 FROM node:20-alpine AS builder
 WORKDIR /app
-
-# Install OpenSSL 3.x for Prisma
-RUN apk add --no-cache openssl
-
 COPY --from=deps /app/node_modules ./node_modules
 COPY . . 
 
-# Generate Prisma client before build with correct platform
+# Generate Prisma client with linux-musl-openssl-3.0.x binary target (configured in schema.prisma)
 RUN npx prisma generate
 RUN npm run build
 
@@ -26,9 +20,6 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-
-# Install OpenSSL 3.x for Prisma runtime
-RUN apk add --no-cache openssl
 
 # Runtime files
 COPY --from=builder /app/package*.json ./
@@ -40,7 +31,7 @@ COPY --from=builder /app/next.config.* ./
 # Copy prisma schema for migrations at runtime
 COPY --from=builder /app/prisma ./prisma
 
-# Copy initialization scripts
+# Copy initialization scripts needed by docker-entrypoint.sh
 COPY --from=builder /app/init-db.js ./
 COPY --from=builder /app/seed-db.js ./
 COPY --from=builder /app/lib ./lib
