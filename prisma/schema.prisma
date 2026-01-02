@@ -27,10 +27,12 @@ model Workout {
   name      String
   date      DateTime @default(now())
   notes     String?
+  programId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime? // Soft delete
   
+  program   Program? @relation(fields: [programId], references: [id])
   exercises WorkoutExercise[]
 }
 
@@ -52,7 +54,7 @@ model Set {
   workoutExerciseId String
   setNumber         Int      // 1, 2, 3, etc.
   reps              Int
-  weight            Float
+  weight            Float?
   rpe               Float?   // Rate of Perceived Exertion (optional)
   createdAt         DateTime @default(now())
   
@@ -69,14 +71,18 @@ model Program {
   deletedAt   DateTime? // Soft delete
   
   exercises ProgramExercise[]
+  workouts  Workout[]
 }
 
 model ProgramExercise {
   id         String  @id @default(cuid())
   programId  String
   exerciseId String
-  oneRepMax  Float   // 1RM for calculating weights
-  trainingMax Float  // Usually 90% of 1RM
+  oneRepMax  Float?   // 1RM for calculating weights (optional for non-531 programs)
+  trainingMax Float?  // Usually 90% of 1RM
+  sets       Int?     // Target sets for custom/accessory work
+  reps       Int?     // Target reps for custom/accessory work
+  weight     Float?   // Target weight for custom/accessory work (optional)
   order      Int     // Order of exercise in program
   
   program  Program  @relation(fields: [programId], references: [id], onDelete: Cascade)

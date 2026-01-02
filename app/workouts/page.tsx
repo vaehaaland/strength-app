@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, Dumbbell, ChevronDown, Search, Pencil } from 'lucide-react'
+import Link from 'next/link'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { Plus, Trash2, Dumbbell, ChevronDown, Search, Pencil, Smartphone, Radio } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface Exercise {
@@ -13,7 +14,7 @@ interface Exercise {
 interface WorkoutSet {
   id?: string
   reps: number
-  weight: number
+  weight: number | null
   rpe?: number
 }
 
@@ -30,14 +31,19 @@ interface Workout {
   name: string
   date: string
   notes?: string
+  programId?: string | null
+  program?: Program | null
   exercises: WorkoutExercise[]
 }
 
 interface ProgramExercise {
   id: string
   exerciseId: string
-  oneRepMax: number
-  trainingMax: number
+  oneRepMax?: number | null
+  trainingMax?: number | null
+  sets?: number | null
+  reps?: number | null
+  weight?: number | null
   order: number
   exercise?: Exercise
 }
@@ -50,14 +56,65 @@ interface Program {
   exercises: ProgramExercise[]
 }
 
+const accessoryRecommendations: Record<string, string[]> = {
+  Deadlift: [
+    'Hamstring Curls',
+    'Hip Thrusts',
+    'Glute Bridge',
+    'Good Mornings',
+    "Farmer's Walk",
+    'Dead Hangs',
+    'Plank',
+    'Ab Wheel Rollouts',
+  ],
+  'Bench Press': [
+    'Chest Flyes',
+    'Shoulder Lateral Raises',
+    'Rear Delt Flyes',
+    'Face Pulls',
+    'Push-ups',
+    'Tricep Extensions',
+    'Tricep Dips',
+    'Overhead Tricep Extension',
+  ],
+  Squat: [
+    'Leg Press',
+    'Leg Extensions',
+    'Hamstring Curls',
+    'Hip Thrusts',
+    'Glute Bridge',
+    'Bulgarian Split Squat',
+    'Lunges',
+    'Step-ups',
+    'Good Mornings',
+    'Calf Raises',
+    'Plank',
+  ],
+  'Overhead Press': [
+    'Shoulder Lateral Raises',
+    'Rear Delt Flyes',
+    'Face Pulls',
+    'Tricep Extensions',
+    'Overhead Tricep Extension',
+    'Hammer Curls',
+    'Push-ups',
+    'Plank',
+  ],
+  'Barbell Row': ['Face Pulls', 'Rear Delt Flyes', 'Bicep Curls', 'Hammer Curls', 'Dead Hangs'],
+  'Pull-ups': ['Face Pulls', 'Rear Delt Flyes', 'Hammer Curls', 'Bicep Curls', 'Dead Hangs'],
+  'Lat Pulldown': ['Face Pulls', 'Rear Delt Flyes', 'Hammer Curls', 'Bicep Curls', 'Dead Hangs'],
+}
+
 function ExerciseSelect({
   exercises,
   value,
-  onChange
+  onChange,
+  recommendedIds = []
 }: {
   exercises: Exercise[],
   value: string,
-  onChange: (value: string) => void
+  onChange: (value: string) => void,
+  recommendedIds?: string[]
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -76,9 +133,17 @@ function ExerciseSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [wrapperRef])
 
-  const filteredExercises = exercises.filter(ex =>
-    ex.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const recommendedSet = new Set(recommendedIds)
+  const filteredExercises = exercises
+    .filter(ex => ex.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      const aRecommended = recommendedSet.has(a.id)
+      const bRecommended = recommendedSet.has(b.id)
+
+      if (aRecommended && !bRecommended) return -1
+      if (bRecommended && !aRecommended) return 1
+      return a.name.localeCompare(b.name)
+    })
 
   return (
     <div className="relative flex-1 max-w-sm" ref={wrapperRef}>
@@ -126,11 +191,18 @@ function ExerciseSelect({
                   }`}
               >
                 <span>{exercise.name}</span>
-                {exercise.category && (
-                  <span className="text-[10px] uppercase font-semibold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
-                    {exercise.category}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {recommendedSet.has(exercise.id) && (
+                    <span className="text-[10px] font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 rounded">
+                      Recommended
+                    </span>
+                  )}
+                  {exercise.category && (
+                    <span className="text-[10px] uppercase font-semibold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                      {exercise.category}
+                    </span>
+                  )}
+                </div>
               </div>
             ))
           )}
@@ -161,6 +233,23 @@ export default function WorkoutsPage() {
       sets: [{ reps: 10, weight: 0 }]
     }
   ])
+
+  const recommendedAccessoryIds = useMemo(() => {
+    const selectedCompoundNames = workoutExercises
+      .map((exercise) => exercises.find((ex) => ex.id === exercise.exerciseId))
+      .filter((exercise): exercise is Exercise => Boolean(exercise && exercise.category === 'compound'))
+      .map((exercise) => exercise.name)
+
+    const recommendedNames = new Set<string>()
+
+    selectedCompoundNames.forEach((name) => {
+      accessoryRecommendations[name]?.forEach((accessory) => recommendedNames.add(accessory))
+    })
+
+    return exercises
+      .filter((exercise) => exercise.category === 'accessory' && recommendedNames.has(exercise.name))
+      .map((exercise) => exercise.id)
+  }, [workoutExercises, exercises])
 
   useEffect(() => {
     fetchWorkouts()
@@ -198,6 +287,11 @@ export default function WorkoutsPage() {
     try {
       const res = await fetch('/api/programs')
       const data = await res.json()
+      if (!res.ok || !Array.isArray(data)) {
+        console.error('Failed to fetch programs:', data)
+        setPrograms([])
+        return
+      }
       setPrograms(data)
     } catch (error) {
       console.error('Failed to fetch programs:', error)
@@ -212,6 +306,7 @@ export default function WorkoutsPage() {
         name: workoutName,
         date: workoutDate,
         notes: workoutNotes,
+        programId: selectedProgramId || null,
         exercises: workoutExercises.filter(ex => ex.exerciseId),
       }
 
@@ -275,11 +370,44 @@ export default function WorkoutsPage() {
     const program = programs.find(p => p.id === programId)
     if (!program) return
 
-    const populatedExercises = program.exercises?.map((ex: ProgramExercise) => ({
-      exerciseId: ex.exerciseId,
-      notes: '',
-      sets: [{ reps: 5, weight: ex.trainingMax || 0 }],
-    })) || []
+    const populatedExercises = program.exercises?.map((ex: ProgramExercise) => {
+      if (program.type === '531') {
+        if (ex.oneRepMax || ex.trainingMax) {
+          return {
+            exerciseId: ex.exerciseId,
+            notes: '',
+            sets: [{ reps: 5, weight: ex.trainingMax ?? 0 }],
+          }
+        }
+        if (ex.sets && ex.reps) {
+          return {
+            exerciseId: ex.exerciseId,
+            notes: '',
+            sets: Array.from({ length: ex.sets }, () => ({
+              reps: ex.reps || 10,
+              weight: ex.weight ?? null,
+            })),
+          }
+        }
+      }
+
+      if (ex.sets && ex.reps) {
+        return {
+          exerciseId: ex.exerciseId,
+          notes: '',
+          sets: Array.from({ length: ex.sets }, () => ({
+            reps: ex.reps || 10,
+            weight: ex.weight ?? null,
+          })),
+        }
+      }
+
+      return {
+        exerciseId: ex.exerciseId,
+        notes: '',
+        sets: [{ reps: 10, weight: null }],
+      }
+    }) || []
 
     setWorkoutName(program.name)
     setWorkoutExercises(populatedExercises.length ? populatedExercises : [{ exerciseId: '', sets: [{ reps: 10, weight: 0 }] }])
@@ -314,7 +442,7 @@ export default function WorkoutsPage() {
     setWorkoutExercises(updated)
   }
 
-  function updateSet(exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: number) {
+  function updateSet(exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: number | null) {
     const updated = [...workoutExercises]
     updated[exerciseIndex].sets[setIndex] = {
       ...updated[exerciseIndex].sets[setIndex],
@@ -328,6 +456,7 @@ export default function WorkoutsPage() {
     setWorkoutName(workout.name)
     setWorkoutDate(format(new Date(workout.date), 'yyyy-MM-dd'))
     setWorkoutNotes(workout.notes || '')
+    setSelectedProgramId(workout.programId || '')
 
     const mappedExercises: WorkoutExercise[] = workout.exercises.map(ex => ({
       id: ex.id,
@@ -335,7 +464,7 @@ export default function WorkoutsPage() {
       notes: ex.notes,
       sets: ex.sets.map(set => ({
         reps: set.reps,
-        weight: set.weight,
+        weight: set.weight ?? null,
         rpe: set.rpe,
       })),
     }))
@@ -376,7 +505,7 @@ export default function WorkoutsPage() {
               onChange={(e) => handleProgramSelect(e.target.value)}
               className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">No program</option>
+              <option value="">Custom økt</option>
               {programs.map((program) => (
                 <option key={program.id} value={program.id}>
                   {program.name}
@@ -447,6 +576,7 @@ export default function WorkoutsPage() {
                     exercises={exercises}
                     value={ex.exerciseId}
                     onChange={(val) => updateExercise(exerciseIndex, 'exerciseId', val)}
+                    recommendedIds={recommendedAccessoryIds}
                   />
                   <button
                     type="button"
@@ -476,18 +606,30 @@ export default function WorkoutsPage() {
                       <div className="col-span-4">
                         <input
                           type="number"
-                          value={set.weight}
-                          onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', parseFloat(e.target.value))}
+                          value={set.weight ?? ''}
+                          onChange={(e) =>
+                            updateSet(
+                              exerciseIndex,
+                              setIndex,
+                              'weight',
+                              e.target.value === ''
+                                ? null
+                                : Number.isNaN(parseFloat(e.target.value))
+                                ? null
+                                : parseFloat(e.target.value)
+                            )
+                          }
                           min="0"
                           step="0.5"
                           className="w-full px-2 py-1 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm text-center"
+                          placeholder="BW"
                         />
                       </div>
                       <div className="col-span-4">
                         <input
                           type="number"
                           value={set.reps}
-                          onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', parseInt(e.target.value))}
+                          onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', parseInt(e.target.value, 10) || 1)}
                           min="1"
                           className="w-full px-2 py-1 border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm text-center"
                         />
@@ -576,6 +718,14 @@ export default function WorkoutsPage() {
         </div>
       </div>
 
+      <Link
+        href="/workouts/live"
+        className="sm:hidden fixed bottom-20 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-blue-600 text-white px-4 py-2 text-sm font-semibold shadow-lg hover:bg-blue-700 transition-colors"
+      >
+        <Smartphone className="h-4 w-4" />
+        Live log
+      </Link>
+
       {/* Workout Form Modal */}
       {isFormOpen && (
         isMobile ? (
@@ -627,11 +777,25 @@ export default function WorkoutsPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleEditWorkout(workout)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors"
+                    className="hidden sm:inline-flex p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors"
                     title="Edit workout"
                   >
                     <Pencil className="h-5 w-5" />
                   </button>
+                  <Link
+                    href={`/workouts/live?id=${workout.id}`}
+                    className="sm:hidden inline-flex items-center justify-center h-9 w-9 rounded-full bg-blue-600 text-white shadow-md hover:bg-blue-700 transition-colors"
+                    title="Continue in live"
+                  >
+                    <Radio className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    href={`/workouts/live?id=${workout.id}`}
+                    className="hidden sm:inline-flex p-2 text-zinc-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors text-sm"
+                    title="Continue in live"
+                  >
+                    Live
+                  </Link>
                   <button
                     onClick={() => handleDelete(workout.id)}
                     className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
@@ -660,7 +824,11 @@ export default function WorkoutsPage() {
                     <div className="flex flex-wrap gap-2">
                       {ex.sets.map((set, i) => (
                         <div key={i} className="inline-flex items-center px-2 py-1 bg-zinc-100 dark:bg-zinc-900 rounded text-xs text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
-                          <span className="font-bold mr-1">{set.weight}kg</span>
+                          {set.weight === null ? (
+                            <span className="font-bold mr-1">BW</span>
+                          ) : (
+                            <span className="font-bold mr-1">{set.weight}kg</span>
+                          )}
                           <span className="text-zinc-400 mx-1">×</span>
                           <span>{set.reps}</span>
                         </div>

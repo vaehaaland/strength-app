@@ -1,41 +1,37 @@
-const Database = require('better-sqlite3')
+/* eslint-disable @typescript-eslint/no-require-imports */
 const path = require('path')
+const dotenv = require('dotenv')
+const exercises = require('./lib/seed-exercises')
+const { PrismaClient } = require('@prisma/client')
 
-const dbPath = path.join(__dirname, 'prisma', 'dev.db')
-const db = new Database(dbPath)
+dotenv.config({ path: path.join(__dirname, '.env.local') })
 
-const exercises = [
-  { name: 'Squat', category: 'compound' },
-  { name: 'Bench Press', category: 'compound' },
-  { name: 'Deadlift', category: 'compound' },
-  { name: 'Overhead Press', category: 'compound' },
-  { name: 'Barbell Row', category: 'compound' },
-  { name: 'Front Squat', category: 'compound' },
-  { name: 'Incline Bench Press', category: 'compound' },
-  { name: 'Romanian Deadlift', category: 'accessory' },
-  { name: 'Pull-ups', category: 'accessory' },
-  { name: 'Dips', category: 'accessory' },
-  { name: 'Lunges', category: 'accessory' },
-  { name: 'Leg Press', category: 'accessory' },
-]
+const prisma = new PrismaClient()
 
-const insert = db.prepare(`
-  INSERT OR IGNORE INTO Exercise (id, name, category, createdAt, updatedAt)
-  VALUES (?, ?, ?, datetime('now'), datetime('now'))
-`)
-
-const generateId = () => {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  let id = ''
-  for (let i = 0; i < 25; i++) {
-    id += chars[Math.floor(Math.random() * chars.length)]
+async function seed() {
+  for (const exercise of exercises) {
+    await prisma.exercise.upsert({
+      where: { name: exercise.name },
+      update: {},
+      create: exercise,
+    })
   }
-  return id
 }
 
-for (const exercise of exercises) {
-  insert.run(generateId(), exercise.name, exercise.category)
+async function main() {
+  try {
+    await seed()
+    console.log(`Seeded ${exercises.length} exercises.`)
+  } catch (error) {
+    console.error('Failed to seed exercises:', error)
+    process.exitCode = 1
+  } finally {
+    await prisma.$disconnect()
+  }
 }
 
-console.log('✓ Seeded exercises successfully')
-db.close()
+if (require.main === module) {
+  main()
+}
+
+module.exports = seed

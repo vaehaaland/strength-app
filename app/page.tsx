@@ -10,7 +10,7 @@ export default function Home() {
           Strength Tracker
         </h1>
         <p className="text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-          Track your workouts, manage 5/3/1 programs, and monitor your strength progress
+          Track your workouts, manage 5/3/1, custom, and hypertrophy programs, and monitor your strength progress
         </p>
       </div>
 
@@ -42,10 +42,10 @@ export default function Home() {
               <Calendar className="h-8 w-8 text-purple-600 dark:text-purple-400" />
             </div>
             <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-              5/3/1 Programs
+              Programs
             </h2>
             <p className="text-zinc-600 dark:text-zinc-400">
-              Generate personalized 5/3/1 training programs based on your one-rep maxes.
+              Build 5/3/1, custom, or hypertrophy programs with your preferred sets and reps.
             </p>
           </div>
         </Link>
@@ -80,7 +80,7 @@ export default function Home() {
           </li>
           <li className="flex items-start">
             <span className="font-bold mr-2">2.</span>
-            <span>Create a 5/3/1 program by entering your one-rep maxes</span>
+            <span>Create a program (5/3/1, custom, or hypertrophy) to guide your training</span>
           </li>
           <li className="flex items-start">
             <span className="font-bold mr-2">3.</span>

@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+type WorkoutSetInput = {
+  reps: number
+  weight?: number | null
+  rpe?: number
+}
+
+type WorkoutExerciseInput = {
+  exerciseId: string
+  notes?: string
+  sets?: WorkoutSetInput[]
+}
+
 export async function GET() {
   try {
     const workouts = await prisma.workout.findMany({
@@ -8,6 +20,7 @@ export async function GET() {
         deletedAt: null,
       },
       include: {
+        program: true,
         exercises: {
           include: {
             exercise: true,
@@ -36,7 +49,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, date, notes, exercises } = body
+    const { name, date, notes, exercises, programId } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Workout name is required' }, { status: 400 })
@@ -47,16 +60,17 @@ export async function POST(request: NextRequest) {
         name,
         date: date ? new Date(date) : new Date(),
         notes,
+        programId: programId || null,
         exercises: {
-          create: exercises?.map((ex: any, index: number) => ({
+          create: (exercises as WorkoutExerciseInput[] | undefined)?.map((ex, index: number) => ({
             exerciseId: ex.exerciseId,
             order: index,
             notes: ex.notes,
             sets: {
-              create: ex.sets?.map((set: any, setIndex: number) => ({
+              create: ex.sets?.map((set, setIndex: number) => ({
                 setNumber: setIndex + 1,
                 reps: set.reps,
-                weight: set.weight,
+                weight: typeof set.weight === 'number' ? set.weight : null,
                 rpe: set.rpe,
               })) || [],
             },
@@ -64,6 +78,7 @@ export async function POST(request: NextRequest) {
         },
       },
       include: {
+        program: true,
         exercises: {
           include: {
             exercise: true,
