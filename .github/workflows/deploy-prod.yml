@@ -1,4 +1,4 @@
-name: Deploy (prod)
+name: Deploy prod
 
 on:
   push:
@@ -7,14 +7,24 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Build + restart containers
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sync repo to server app dir
         run: |
-          docker compose down || true
-          docker compose build --pull
-          docker compose up -d --remove-orphans
+          rsync -av --delete \
+            --exclude ".git" \
+            --exclude ".github" \
+            --exclude "node_modules" \
+            --exclude ".next" \
+            ./ /home/deploy/strength-site/app/
+
+      - name: Build and restart via docker compose
+        run: |
+          cd /home/deploy/strength-site
+          docker compose up -d --build --remove-orphans
 
       - name: Smoke test
         run: |
