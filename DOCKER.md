@@ -1,15 +1,14 @@
 # Docker Deployment Guide
 
 ## Overview
-This application is containerized using Docker and designed to run on Alpine Linux (node:20-alpine).
+This application is containerized using Docker and designed to run on Debian Bullseye (node:20-bullseye-slim).
 
 ## Key Configuration
 
-### Prisma + Alpine Linux
-The application uses Prisma ORM with SQLite. For Alpine Linux compatibility:
-- **Binary Target**: Prisma schema specifies `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]`
-- **OpenSSL**: Alpine 3.23 includes OpenSSL 3.x by default (libssl3, libcrypto3)
-- No additional packages need to be installed
+### Prisma + Debian Bullseye
+The application uses Prisma ORM with SQLite. For Debian compatibility:
+- **Binary Target**: Prisma schema specifies `binaryTargets = ["native", "debian-openssl-1.1.x"]`
+- **OpenSSL**: The Dockerfile installs `openssl` to provide the required 1.1.x libraries
 
 ### Database Configuration
 The database path is controlled by the `DATABASE_URL` environment variable:
@@ -65,7 +64,7 @@ Error loading shared library libssl.so.1.1: No such file or directory
 ```
 
 This means Prisma is using the wrong binary target. Ensure:
-1. `prisma/schema.prisma` includes `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]`
+1. `prisma/schema.prisma` includes `binaryTargets = ["native", "debian-openssl-1.1.x"]`
 2. Run `npx prisma generate` after changes
 3. Rebuild the Docker image
 
