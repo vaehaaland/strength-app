@@ -18,6 +18,7 @@ interface ProgramExercise {
   sets?: number | null
   reps?: number | null
   weight?: number | null
+  day?: number | null
 }
 
 interface Program {
@@ -48,6 +49,12 @@ export default function ProgramsPage() {
   const [programAccessoryExercises, setProgramAccessoryExercises] = useState<{ exerciseId: string; sets: number; reps: number; weight: number | null }[]>([])
   const [programCustomExercises, setProgramCustomExercises] = useState<{ exerciseId: string; sets: number; reps: number; weight: number | null }[]>([
     { exerciseId: '', sets: 3, reps: 10, weight: null },
+  ])
+
+  // 5/3/1 Wizard state
+  const [wizardStep, setWizardStep] = useState(0) // 0 = 1RMs, 1-4 = accessories per day
+  const [dayAccessories, setDayAccessories] = useState<{ exerciseId: string; sets: number; reps: number; weight: number | null }[][]>([
+    [], [], [], []
   ])
 
   const MAIN_LIFTS = ['Deadlift', 'Bench Press', 'Squat', 'Overhead Press']
@@ -115,58 +122,92 @@ export default function ProgramsPage() {
     e.preventDefault()
 
     try {
-      const mainExercises = programMainExercises
-        .filter((ex) => ex.exerciseId && ex.oneRepMax > 0)
-        .map((ex) => ({
-          exerciseId: ex.exerciseId,
-          oneRepMax: ex.oneRepMax,
-        }))
+      if (programType === '531') {
+        // Build exercises with day assignments for 5/3/1 wizard
+        const mainExercises = programMainExercises
+          .filter((ex) => ex.exerciseId && ex.oneRepMax > 0)
+          .map((ex, index) => ({
+            exerciseId: ex.exerciseId,
+            oneRepMax: ex.oneRepMax,
+            day: index + 1, // Day 1-4 for each main lift
+          }))
 
-      const accessoryExercises = programAccessoryExercises
-        .filter((ex) => ex.exerciseId && ex.sets > 0 && ex.reps > 0)
-        .map((ex) => ({
-          exerciseId: ex.exerciseId,
-          sets: ex.sets,
-          reps: ex.reps,
-          weight: ex.weight ?? null,
-        }))
+        // Add accessories for each day
+        const allAccessories: any[] = []
+        dayAccessories.forEach((accessories, dayIndex) => {
+          accessories
+            .filter((ex) => ex.exerciseId && ex.sets > 0 && ex.reps > 0)
+            .forEach((ex) => {
+              allAccessories.push({
+                exerciseId: ex.exerciseId,
+                sets: ex.sets,
+                reps: ex.reps,
+                weight: ex.weight ?? null,
+                day: dayIndex + 1, // Day 1-4
+              })
+            })
+        })
 
-      const customExercises = programCustomExercises
-        .filter((ex) => ex.exerciseId && ex.sets > 0 && ex.reps > 0)
-        .map((ex) => ({
-          exerciseId: ex.exerciseId,
-          sets: ex.sets,
-          reps: ex.reps,
-          weight: ex.weight ?? null,
-        }))
+        const exercisesPayload = [...mainExercises, ...allAccessories]
 
-      const exercisesPayload =
-        programType === '531' ? [...mainExercises, ...accessoryExercises] : customExercises
+        const res = await fetch('/api/programs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: programName,
+            type: programType,
+            description: programDescription,
+            exercises: exercisesPayload,
+          }),
+        })
 
-      const res = await fetch('/api/programs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: programName,
-          type: programType,
-          description: programDescription,
-          exercises: exercisesPayload,
-        }),
-      })
+        if (res.ok) {
+          setIsFormOpen(false)
+          resetForm()
+          fetchPrograms()
+        }
+      } else {
+        // Custom/Hypertrophy programs (no wizard)
+        const customExercises = programCustomExercises
+          .filter((ex) => ex.exerciseId && ex.sets > 0 && ex.reps > 0)
+          .map((ex) => ({
+            exerciseId: ex.exerciseId,
+            sets: ex.sets,
+            reps: ex.reps,
+            weight: ex.weight ?? null,
+          }))
 
-      if (res.ok) {
-        setIsFormOpen(false)
-        setProgramName('')
-        setProgramDescription('')
-        setProgramType('531')
-        setProgramMainExercises(buildMainLifts())
-        setProgramAccessoryExercises([])
-        setProgramCustomExercises([{ exerciseId: '', sets: 3, reps: 10, weight: null }])
-        fetchPrograms()
+        const res = await fetch('/api/programs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: programName,
+            type: programType,
+            description: programDescription,
+            exercises: customExercises,
+          }),
+        })
+
+        if (res.ok) {
+          setIsFormOpen(false)
+          resetForm()
+          fetchPrograms()
+        }
       }
     } catch (error) {
       console.error('Failed to create program:', error)
     }
+  }
+
+  function resetForm() {
+    setProgramName('')
+    setProgramDescription('')
+    setProgramType('531')
+    setProgramMainExercises(buildMainLifts())
+    setProgramAccessoryExercises([])
+    setProgramCustomExercises([{ exerciseId: '', sets: 3, reps: 10, weight: null }])
+    setWizardStep(0)
+    setDayAccessories([[], [], [], []])
   }
 
   async function handleDelete(id: string) {
@@ -229,6 +270,30 @@ export default function ProgramsPage() {
     const updated = [...programCustomExercises]
     updated[index] = { ...updated[index], [field]: value }
     setProgramCustomExercises(updated)
+  }
+
+  // Day accessory management for 5/3/1 wizard
+  function addDayAccessoryRow(dayIndex: number) {
+    const updated = [...dayAccessories]
+    updated[dayIndex] = [...updated[dayIndex], { exerciseId: '', sets: 3, reps: 12, weight: null }]
+    setDayAccessories(updated)
+  }
+
+  function removeDayAccessoryRow(dayIndex: number, exerciseIndex: number) {
+    const updated = [...dayAccessories]
+    updated[dayIndex] = updated[dayIndex].filter((_, i) => i !== exerciseIndex)
+    setDayAccessories(updated)
+  }
+
+  function updateDayAccessoryRow(
+    dayIndex: number,
+    exerciseIndex: number,
+    field: 'exerciseId' | 'sets' | 'reps' | 'weight',
+    value: string | number | null
+  ) {
+    const updated = [...dayAccessories]
+    updated[dayIndex][exerciseIndex] = { ...updated[dayIndex][exerciseIndex], [field]: value }
+    setDayAccessories(updated)
   }
 
   const formatProgramType = (type: string) => {
@@ -331,115 +396,194 @@ export default function ProgramsPage() {
 
               {programType === '531' ? (
                 <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">
-                      Main Lifts & 1RM
-                    </label>
-
-                    <div className="space-y-3">
-                      {programMainExercises.map((ex, index) => (
-                        <div key={index} className="p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                                {exercises.find((exercise) => exercise.id === ex.exerciseId)?.name || MAIN_LIFTS[index]}
-                              </p>
-                              <p className="text-xs text-zinc-500">Main lift</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                value={ex.oneRepMax || ''}
-                                onChange={(e) => updateMainExerciseRow(index, 'oneRepMax', parseFloat(e.target.value) || 0)}
-                                placeholder="1RM (kg)"
-                                min="0"
-                                step="0.5"
-                                className="w-32 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
-                              />
-                            </div>
-                          </div>
+                  {/* Wizard Progress Indicator */}
+                  <div className="flex items-center justify-between mb-4">
+                    {['1RMs', ...MAIN_LIFTS.map((_, i) => `Day ${i + 1}`)].map((step, index) => (
+                      <div key={index} className="flex items-center">
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                            wizardStep === index
+                              ? 'bg-purple-600 text-white'
+                              : wizardStep > index
+                              ? 'bg-green-500 text-white'
+                              : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400'
+                          }`}
+                        >
+                          {wizardStep > index ? '✓' : index + 1}
                         </div>
-                      ))}
-                    </div>
+                        {index < 4 && (
+                          <div
+                            className={`w-12 h-0.5 ${
+                              wizardStep > index ? 'bg-green-500' : 'bg-zinc-200 dark:bg-zinc-700'
+                            }`}
+                          />
+                        )}
+                      </div>
+                    ))}
                   </div>
 
-                  <div>
-                    <div className="flex justify-between items-center mb-3">
-                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                        Accessories (sets/reps)
-                      </label>
-                      <button
-                        type="button"
-                        onClick={addAccessoryExerciseRow}
-                        className="text-sm text-purple-600 dark:text-purple-400 hover:underline"
-                      >
-                        + Add Accessory
-                      </button>
-                    </div>
-
-                    {programAccessoryExercises.length === 0 ? (
-                      <p className="text-xs text-zinc-500">Optional: add accessory work without weight.</p>
-                    ) : (
+                  {/* Step 0: Enter 1RMs */}
+                  {wizardStep === 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
+                        Step 1: Enter your 1RM for each main lift
+                      </h3>
                       <div className="space-y-3">
-                        {programAccessoryExercises.map((ex, index) => (
+                        {programMainExercises.map((ex, index) => (
                           <div key={index} className="p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                              <select
-                                value={ex.exerciseId}
-                                onChange={(e) => updateAccessoryExerciseRow(index, 'exerciseId', e.target.value)}
-                                className="md:col-span-2 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
-                              >
-                                <option value="">Select exercise...</option>
-                                {exercises.map((exercise) => (
-                                  <option key={exercise.id} value={exercise.id}>
-                                    {exercise.name}
-                                  </option>
-                                ))}
-                              </select>
-                              <input
-                                type="number"
-                                value={ex.sets || ''}
-                                onChange={(e) => updateAccessoryExerciseRow(index, 'sets', parseInt(e.target.value, 10) || 0)}
-                                placeholder="Sets"
-                                min="1"
-                                className="px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
-                              />
-                              <input
-                                type="number"
-                                value={ex.reps || ''}
-                                onChange={(e) => updateAccessoryExerciseRow(index, 'reps', parseInt(e.target.value, 10) || 0)}
-                                placeholder="Reps"
-                                min="1"
-                                className="px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
-                              />
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                                  {exercises.find((exercise) => exercise.id === ex.exerciseId)?.name || MAIN_LIFTS[index]}
+                                </p>
+                                <p className="text-xs text-zinc-500">Main lift</p>
+                              </div>
                               <div className="flex items-center gap-2">
                                 <input
                                   type="number"
-                                  value={ex.weight ?? ''}
-                                  onChange={(e) =>
-                                    updateAccessoryExerciseRow(
-                                      index,
-                                      'weight',
-                                      e.target.value === '' ? null : parseFloat(e.target.value)
-                                    )
-                                  }
-                                  placeholder="Weight (kg)"
+                                  value={ex.oneRepMax || ''}
+                                  onChange={(e) => updateMainExerciseRow(index, 'oneRepMax', parseFloat(e.target.value) || 0)}
+                                  placeholder="1RM (kg)"
                                   min="0"
                                   step="0.5"
-                                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                                  className="w-32 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
                                 />
-                                <button
-                                  type="button"
-                                  onClick={() => removeAccessoryExerciseRow(index)}
-                                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Steps 1-4: Select accessories for each day */}
+                  {wizardStep > 0 && wizardStep <= 4 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2">
+                        Step {wizardStep + 1}: Accessories for {MAIN_LIFTS[wizardStep - 1]} Day
+                      </h3>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                        Select accessory exercises to perform on {MAIN_LIFTS[wizardStep - 1]} day
+                      </p>
+
+                      <div className="flex justify-between items-center mb-3">
+                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                          Accessories (optional)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => addDayAccessoryRow(wizardStep - 1)}
+                          className="text-sm text-purple-600 dark:text-purple-400 hover:underline"
+                        >
+                          + Add Accessory
+                        </button>
+                      </div>
+
+                      {dayAccessories[wizardStep - 1].length === 0 ? (
+                        <p className="text-xs text-zinc-500 mb-4">No accessories added yet. Click "+ Add Accessory" to add some.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {dayAccessories[wizardStep - 1].map((ex, index) => (
+                            <div key={index} className="p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                                <select
+                                  value={ex.exerciseId}
+                                  onChange={(e) => updateDayAccessoryRow(wizardStep - 1, index, 'exerciseId', e.target.value)}
+                                  className="md:col-span-2 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                                >
+                                  <option value="">Select exercise...</option>
+                                  {exercises.map((exercise) => (
+                                    <option key={exercise.id} value={exercise.id}>
+                                      {exercise.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <input
+                                  type="number"
+                                  value={ex.sets || ''}
+                                  onChange={(e) => updateDayAccessoryRow(wizardStep - 1, index, 'sets', parseInt(e.target.value, 10) || 0)}
+                                  placeholder="Sets"
+                                  min="1"
+                                  className="px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                                />
+                                <input
+                                  type="number"
+                                  value={ex.reps || ''}
+                                  onChange={(e) => updateDayAccessoryRow(wizardStep - 1, index, 'reps', parseInt(e.target.value, 10) || 0)}
+                                  placeholder="Reps"
+                                  min="1"
+                                  className="px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    value={ex.weight ?? ''}
+                                    onChange={(e) =>
+                                      updateDayAccessoryRow(
+                                        wizardStep - 1,
+                                        index,
+                                        'weight',
+                                        e.target.value === '' ? null : parseFloat(e.target.value)
+                                      )
+                                    }
+                                    placeholder="Weight (kg)"
+                                    min="0"
+                                    step="0.5"
+                                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-sm"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeDayAccessoryRow(wizardStep - 1, index)}
+                                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Wizard Navigation */}
+                  <div className="flex justify-between pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsFormOpen(false)
+                          resetForm()
+                        }}
+                        className="px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWizardStep(Math.max(0, wizardStep - 1))}
+                        disabled={wizardStep === 0}
+                        className="px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                    </div>
+                    {wizardStep < 4 ? (
+                      <button
+                        type="button"
+                        onClick={() => setWizardStep(wizardStep + 1)}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        Next
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        Create Program
+                      </button>
                     )}
                   </div>
                 </div>
@@ -523,21 +667,24 @@ export default function ProgramsPage() {
                 </div>
               )}
 
-              <div className="flex space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setIsFormOpen(false)}
-                  className="flex-1 px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  Save Program
-                </button>
-              </div>
+              {/* Form buttons for non-531 programs */}
+              {programType !== '531' && (
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsFormOpen(false)}
+                    className="flex-1 px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    Save Program
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>

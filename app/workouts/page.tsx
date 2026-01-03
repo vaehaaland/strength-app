@@ -45,6 +45,7 @@ interface ProgramExercise {
   reps?: number | null
   weight?: number | null
   order: number
+  day?: number | null
   exercise?: Exercise
 }
 
@@ -222,6 +223,7 @@ export default function WorkoutsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null)
   const [selectedProgramId, setSelectedProgramId] = useState('')
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
 
   // Form state
   const [workoutName, setWorkoutName] = useState('')
@@ -336,6 +338,7 @@ export default function WorkoutsPage() {
     setWorkoutExercises([{ exerciseId: '', sets: [{ reps: 10, weight: 0 }] }])
     setEditingWorkoutId(null)
     setSelectedProgramId('')
+    setSelectedDay(null)
   }
 
   async function handleDelete(id: string) {
@@ -359,18 +362,32 @@ export default function WorkoutsPage() {
     ])
   }
 
-  function handleProgramSelect(programId: string) {
+  function handleProgramSelect(programId: string, day?: number) {
     setSelectedProgramId(programId)
+    setSelectedDay(day ?? null)
 
     if (!programId) {
       setWorkoutExercises([{ exerciseId: '', sets: [{ reps: 10, weight: 0 }] }])
+      setSelectedDay(null)
       return
     }
 
     const program = programs.find(p => p.id === programId)
     if (!program) return
 
-    const populatedExercises = program.exercises?.map((ex: ProgramExercise) => {
+    // For 5/3/1 programs with day selection, filter exercises by day
+    let exercisesToUse = program.exercises || []
+    if (program.type === '531' && day) {
+      exercisesToUse = exercisesToUse.filter(ex => ex.day === day)
+      const mainLift = exercisesToUse.find(ex => ex.oneRepMax || ex.trainingMax)
+      if (mainLift && mainLift.exercise) {
+        setWorkoutName(`${program.name} - ${mainLift.exercise.name} Day`)
+      }
+    } else {
+      setWorkoutName(program.name)
+    }
+
+    const populatedExercises = exercisesToUse.map((ex: ProgramExercise) => {
       if (program.type === '531') {
         if (ex.oneRepMax || ex.trainingMax) {
           return {
@@ -407,9 +424,8 @@ export default function WorkoutsPage() {
         notes: '',
         sets: [{ reps: 10, weight: null }],
       }
-    }) || []
+    })
 
-    setWorkoutName(program.name)
     setWorkoutExercises(populatedExercises.length ? populatedExercises : [{ exerciseId: '', sets: [{ reps: 10, weight: 0 }] }])
   }
 
@@ -502,7 +518,10 @@ export default function WorkoutsPage() {
             <label className="block text-sm font-medium mb-2 text-zinc-700 dark:text-zinc-300">Program</label>
             <select
               value={selectedProgramId}
-              onChange={(e) => handleProgramSelect(e.target.value)}
+              onChange={(e) => {
+                handleProgramSelect(e.target.value)
+                setSelectedDay(null)
+              }}
               className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">Custom økt</option>
@@ -513,6 +532,27 @@ export default function WorkoutsPage() {
               ))}
             </select>
           </div>
+          {selectedProgramId && programs.find(p => p.id === selectedProgramId)?.type === '531' && (
+            <div>
+              <label className="block text-sm font-medium mb-2 text-zinc-700 dark:text-zinc-300">Day</label>
+              <select
+                value={selectedDay ?? ''}
+                onChange={(e) => handleProgramSelect(selectedProgramId, e.target.value ? parseInt(e.target.value) : undefined)}
+                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select day...</option>
+                {[1, 2, 3, 4].map(day => {
+                  const program = programs.find(p => p.id === selectedProgramId)
+                  const mainLift = program?.exercises.find(ex => ex.day === day && (ex.oneRepMax || ex.trainingMax))
+                  return (
+                    <option key={day} value={day}>
+                      Day {day}{mainLift?.exercise ? ` - ${mainLift.exercise.name}` : ''}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
