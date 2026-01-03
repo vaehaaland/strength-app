@@ -60,6 +60,17 @@ type LiveExercise = {
   sets: LiveSet[]
 }
 
+type WorkoutExerciseFromAPI = {
+  exerciseId: string
+  exercise?: Exercise
+  notes?: string
+  sets: Array<{
+    reps: number
+    weight?: number | null
+    rpe?: number
+  }>
+}
+
 function parseReps(value: string) {
   const numeric = parseInt(value.replace(/\D/g, ''), 10)
   return Number.isNaN(numeric) ? 5 : numeric
@@ -163,11 +174,11 @@ function LiveWorkoutPageContent() {
         setSelectedProgramId(workout.programId || '')
         setSessionName(workout.name || '')
         setSessionNotes(workout.notes || '')
-        const mapped: LiveExercise[] = workout.exercises.map((ex: any) => ({
+        const mapped: LiveExercise[] = workout.exercises.map((ex: WorkoutExerciseFromAPI) => ({
           exerciseId: ex.exerciseId,
           exercise: ex.exercise,
           notes: ex.notes,
-          sets: ex.sets.map((set: any) => ({
+          sets: ex.sets.map((set: { reps: number; weight?: number | null; rpe?: number }) => ({
             reps: set.reps,
             weight: set.weight ?? null,
             rpe: set.rpe,
