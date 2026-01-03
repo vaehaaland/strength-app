@@ -701,10 +701,14 @@ export default function ProgramsPage() {
                   {mainProgramExercises.map((exercise) => {
                     const baseMax = exercise.oneRepMax || (exercise.trainingMax ? exercise.trainingMax / 0.9 : 0)
                     const weeks = generate531Program(baseMax)
+                    // Get accessories for this day
+                    const dayAccessories = selectedProgram.exercises.filter(
+                      (ex) => ex.day === exercise.day && !ex.oneRepMax && !ex.trainingMax && ex.sets && ex.reps
+                    )
                     return (
                       <div key={exercise.id} className="border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden">
                         <div className="bg-purple-50 dark:bg-purple-950 px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
-                          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">{exercise.exercise.name}</h3>
+                          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">{exercise.exercise.name} Day</h3>
                           <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
                             1RM: {exercise.oneRepMax ?? '-'}kg - Training Max: {exercise.trainingMax ?? '-'}kg (90%)
                           </p>
@@ -747,25 +751,26 @@ export default function ProgramsPage() {
                             </tbody>
                           </table>
                         </div>
+
+                        {/* Show accessories for this day */}
+                        {dayAccessories.length > 0 && (
+                          <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-700">
+                            <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 mb-3">Accessories</h4>
+                            <div className="space-y-2">
+                              {dayAccessories.map((accessory) => (
+                                <div key={accessory.id} className="flex items-center justify-between text-sm">
+                                  <span className="text-zinc-700 dark:text-zinc-300">{accessory.exercise.name}</span>
+                                  <span className="text-zinc-600 dark:text-zinc-400">
+                                    {accessory.sets}x{accessory.reps}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
-
-                  {accessoryProgramExercises.length > 0 && (
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-5">
-                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-3">Accessories</h3>
-                      <div className="space-y-2">
-                        {accessoryProgramExercises.map((exercise) => (
-                          <div key={exercise.id} className="flex items-center justify-between text-sm">
-                            <span className="text-zinc-900 dark:text-zinc-50">{exercise.exercise.name}</span>
-                            <span className="text-zinc-600 dark:text-zinc-400">
-                              {exercise.sets}x{exercise.reps} - {exercise.weight == null ? 'BW' : `${exercise.weight}kg`}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </>
               ) : (
                 <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-5">
