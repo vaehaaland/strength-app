@@ -32,6 +32,7 @@ type ProgramInputExercise = {
   sets?: number
   reps?: number
   weight?: number | null
+  day?: number | null
 }
 
 export async function POST(request: NextRequest) {
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
               sets: typeof ex.sets === 'number' ? ex.sets : null,
               reps: typeof ex.reps === 'number' ? ex.reps : null,
               weight: typeof ex.weight === 'number' ? ex.weight : null,
+              day: typeof ex.day === 'number' ? ex.day : null,
               order: index,
             }
           }) || [],

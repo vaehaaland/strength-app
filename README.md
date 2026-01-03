@@ -5,7 +5,7 @@ A comprehensive workout tracking application built with Next.js 16, featuring 5/
 ## Features
 
 - 📝 **Workout Logging**: Track exercises, sets, reps, and weights
-- 📊 **5/3/1 Program Generator**: Create personalized strength programs based on your 1RM
+- 📊 **5/3/1 Program Wizard**: Multi-step wizard to create personalized 5/3/1 programs with day-specific accessories based on your 1RM
 - 📈 **Progress Tracking**: Visualize strength trends, body weight, and body fat percentage
 - 🎨 **Modern UI**: Clean, responsive design optimized for mobile and desktop
 - 📱 **PWA Ready**: Installable as a progressive web app
@@ -100,8 +100,20 @@ npm start
 ### Creating 5/3/1 Programs
 1. Navigate to the "Programs" page
 2. Click "Create Program"
-3. Enter program name and your 1RM for each exercise
-4. View the generated 4-week cycle with calculated weights
+3. Select "5/3/1" as the program type
+4. **Step 1:** Enter your 1RM (one-rep max) for each main lift:
+   - Deadlift
+   - Bench Press
+   - Squat
+   - Overhead Press
+5. **Steps 2-5:** For each workout day, select accessory exercises with sets/reps:
+   - Click "Next" to move through each day
+   - Add accessories specific to that day's main lift (optional)
+   - Click "+ Add Accessory" to add more exercises
+6. Click "Create Program" to save
+7. View the generated 4-week cycle with calculated weights
+
+When logging a workout from a 5/3/1 program, select the program and then choose which day (e.g., "Day 1 - Deadlift") to automatically populate the main lift and accessories for that day.
 
 ### Tracking Progress
 1. Navigate to the "Stats" page

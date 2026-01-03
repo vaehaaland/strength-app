@@ -85,6 +85,7 @@ model ProgramExercise {
   reps       Int?     // Target reps for custom/accessory work
   weight     Float?   // Target weight for custom/accessory work (optional)
   order      Int     // Order of exercise in program
+  day        Int?    // Day/workout number (1-4 for 5/3/1, null for non-structured programs)
   
   program  Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
   exercise Exercise @relation(fields: [exerciseId], references: [id])
