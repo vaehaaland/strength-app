@@ -4,7 +4,9 @@ const dotenv = require('dotenv')
 const exercises = require('./lib/seed-exercises')
 const { PrismaClient } = require('@prisma/client')
 
+// Try to load from .env.local first, then .env
 dotenv.config({ path: path.join(__dirname, '.env.local') })
+dotenv.config({ path: path.join(__dirname, '.env') })
 
 const prisma = new PrismaClient()
 
