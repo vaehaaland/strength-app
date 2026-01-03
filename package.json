@@ -7,7 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "migrate": "node scripts/safe-migrate.js dev",
+    "migrate:deploy": "node scripts/safe-migrate.js deploy",
+    "backup": "node scripts/backup.js",
+    "backup:with-json": "node scripts/backup.js --with-json",
+    "restore": "node scripts/restore-backup.js",
+    "cleanup-backups": "node scripts/cleanup-backups.js"
   },
   "dependencies": {
     "@libsql/client": "^0.15.15",

@@ -51,9 +51,17 @@ docker run -p 3000:3000 -e DATABASE_URL="file:/custom/path/app.db" strength-app
 ## Initialization
 
 The `docker-entrypoint.sh` script automatically:
-1. Creates the `/data/db` directory
-2. Runs Prisma migrations (`npx prisma migrate deploy`)
-3. If database doesn't exist, runs initialization and seeding scripts
+1. Creates the `/data/db` directory and `/data/db/backups`
+2. If database exists: Runs safe migration with automatic backup
+3. If database doesn't exist: Runs Prisma migrations and initialization scripts
+
+**Safe Migration Process:**
+- Creates timestamped backup before migration
+- Verifies database integrity before and after
+- Provides rollback instructions if migration fails
+- Keeps 10 most recent backups automatically
+
+See [Database Migration & Backup Guide](docs/DATABASE_MIGRATION.md) for complete details.
 
 ## Troubleshooting
 
@@ -85,6 +93,24 @@ COPY --from=builder /app/lib ./lib
 Ensure you're mounting a volume to `/data`:
 ```bash
 docker run -v /path/on/host:/data strength-app
+```
+
+### Accessing Database Backups
+
+List available backups:
+```bash
+docker exec <container-name> ls -lh /data/db/backups/
+```
+
+Copy backup to host:
+```bash
+docker cp <container-name>:/data/db/backups/backup-pre-migration-2026-01-03T12-30-45-123Z.db ./
+```
+
+Restore a backup:
+```bash
+docker exec <container-name> node scripts/restore-backup.js /data/db/backups/backup-pre-migration-2026-01-03T12-30-45-123Z.db
+docker restart <container-name>
 ```
 
 ## Environment Variables

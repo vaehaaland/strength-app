@@ -44,4 +44,9 @@ node_modules
 .vs/
 .next/
 *.db
+*.db-journal
 /app/generated/prisma
+
+# Database backups and exports
+backups/
+exports/

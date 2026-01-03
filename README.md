@@ -72,6 +72,24 @@ The app uses SQLite with Prisma ORM. The database is automatically created with 
 - Lunges
 - Leg Press
 
+### Database Migrations & Backups
+
+The application includes a **safe migration system** that automatically backs up your database before any schema changes. See the [Database Migration & Backup Guide](docs/DATABASE_MIGRATION.md) for details on:
+
+- Automatic backup before migrations
+- Database integrity checks
+- Easy restoration from backups
+- JSON data exports
+- Docker deployment with data persistence
+
+**Quick backup commands:**
+```bash
+npm run backup              # Create manual backup
+npm run migrate             # Safe migration with backup
+npm run restore -- --list   # List available backups
+npm run restore -- --latest # Restore from latest backup
+```
+
 ## Building for Production
 
 ```bash
