@@ -115,12 +115,22 @@ export default function ProgramsPage() {
     e.preventDefault()
 
     try {
-      const mainExercises = programMainExercises
-        .filter((ex) => ex.exerciseId && ex.oneRepMax > 0)
-        .map((ex) => ({
-          exerciseId: ex.exerciseId,
+      const resolvedMainExercises = programMainExercises.map((ex, index) => {
+        const exerciseId =
+          ex.exerciseId || exercises.find((exercise) => exercise.name === MAIN_LIFTS[index])?.id || ''
+
+        return {
+          exerciseId,
           oneRepMax: ex.oneRepMax,
-        }))
+        }
+      })
+
+      const mainExercises = resolvedMainExercises.filter((ex) => ex.exerciseId && ex.oneRepMax > 0)
+
+      if (programType === '531' && mainExercises.length === 0) {
+        alert('Legg til 1RM for minst én av hovedløftene før du lagrer programmet.')
+        return
+      }
 
       const accessoryExercises = programAccessoryExercises
         .filter((ex) => ex.exerciseId && ex.sets > 0 && ex.reps > 0)
