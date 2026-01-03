@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, Calculator } from 'lucide-react'
 import { generate531Program } from '@/lib/531-calculator'
 
@@ -28,6 +28,8 @@ interface Program {
   exercises: ProgramExercise[]
 }
 
+const MAIN_LIFTS = ['Deadlift', 'Bench Press', 'Squat', 'Overhead Press']
+
 export default function ProgramsPage() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [exercises, setExercises] = useState<Exercise[]>([])
@@ -50,9 +52,7 @@ export default function ProgramsPage() {
     { exerciseId: '', sets: 3, reps: 10, weight: null },
   ])
 
-  const MAIN_LIFTS = ['Deadlift', 'Bench Press', 'Squat', 'Overhead Press']
-
-  const buildMainLifts = (previousOneRms?: Record<string, number>) =>
+  const buildMainLifts = useCallback((previousOneRms?: Record<string, number>) =>
     MAIN_LIFTS.map((liftName) => {
       const exerciseMatch = exercises.find((exercise) => exercise.name === liftName)
       const exerciseId = exerciseMatch?.id || ''
@@ -62,7 +62,7 @@ export default function ProgramsPage() {
           : 0
 
       return { exerciseId, oneRepMax }
-    })
+    }), [exercises])
 
   useEffect(() => {
     fetchPrograms()
@@ -82,7 +82,7 @@ export default function ProgramsPage() {
 
       return buildMainLifts(previousOneRms)
     })
-  }, [exercises])
+  }, [exercises, buildMainLifts])
 
   async function fetchPrograms() {
     try {

@@ -35,7 +35,7 @@ export async function getUserFromRequest(request: NextRequest): Promise<SessionD
     }
 
     return { userId, email }
-  } catch (error) {
+  } catch {
     return null
   }
 }
