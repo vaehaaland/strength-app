@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getUserFromRequest } from '@/lib/auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const session = await getUserFromRequest(request)
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const metrics = await prisma.bodyMetric.findMany({
+      where: {
+        userId: session.userId,
+      },
       orderBy: {
         date: 'desc',
       },
@@ -17,6 +27,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getUserFromRequest(request)
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { date, weight, bodyFat, notes } = body
 
@@ -26,6 +42,7 @@ export async function POST(request: NextRequest) {
         weight,
         bodyFat,
         notes,
+        userId: session.userId,
       },
     })
 
