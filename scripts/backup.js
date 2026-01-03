@@ -6,7 +6,11 @@
  * Usage: node scripts/backup.js [--with-json]
  */
 
+const dotenv = require('dotenv');
 const backup = require('../lib/backup');
+
+// Load environment variables
+dotenv.config();
 
 async function createManualBackup() {
   const includeJson = process.argv.includes('--with-json');

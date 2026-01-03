@@ -6,7 +6,11 @@
  * Usage: node scripts/cleanup-backups.js [keep-count]
  */
 
+const dotenv = require('dotenv');
 const backup = require('../lib/backup');
+
+// Load environment variables
+dotenv.config();
 
 async function cleanupBackups() {
   const keepCount = parseInt(process.argv[2]) || 10;

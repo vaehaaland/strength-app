@@ -8,7 +8,11 @@
  *        node scripts/restore-backup.js --latest
  */
 
+const dotenv = require('dotenv');
 const backup = require('../lib/backup');
+
+// Load environment variables
+dotenv.config();
 
 async function restoreBackupCommand() {
   const arg = process.argv[2];

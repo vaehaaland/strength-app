@@ -7,8 +7,11 @@
  */
 
 const { spawn } = require('child_process');
-const path = require('path');
+const dotenv = require('dotenv');
 const backup = require('../lib/backup');
+
+// Load environment variables
+dotenv.config();
 
 const MIGRATION_MODE = process.argv[2] || 'deploy';
 
