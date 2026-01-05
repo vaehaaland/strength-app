@@ -55,6 +55,15 @@ When you run `npm run migrate`, the system performs these steps:
 
 If any step fails, the process stops and provides instructions for recovery.
 
+### User Model Migration
+
+The application includes a migration that adds user authentication support. When migrating existing data:
+
+- A default system user is automatically created (email: `system@strength-app.local`)
+- All existing Programs, Workouts, and BodyMetrics are assigned to this default user
+- This ensures backward compatibility and allows existing installations to upgrade smoothly
+- After migration, you can create new users and transfer ownership of data if needed
+
 ### Backup Naming Convention
 
 Backups are stored with descriptive names:
