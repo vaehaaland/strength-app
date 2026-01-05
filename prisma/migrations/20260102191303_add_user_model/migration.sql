@@ -20,9 +20,9 @@ CREATE TABLE "User" (
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- Insert default system user for existing data migration
--- Password is hashed "system" (bcrypt hash)
+-- Password is bcrypt hash of "system"
 INSERT INTO "User" ("id", "email", "password", "name", "createdAt", "updatedAt") 
-VALUES ('system-user-default', 'system@strength-app.local', '$2a$10$rZ8qLq5eBFJ0XfJLz5Yg2eYKZqMxZqYq3qxZqYq3qxZqYq3qxZqYq', 'System User', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+VALUES ('system-user-default', 'system@strength-app.local', '$2b$10$87SjNlFmMhw9ppg6p7gehOYzkqDcG2dF0K0BYsMXZJFtRHsSRgxiy', 'System User', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- RedefineTables
 PRAGMA defer_foreign_keys=ON;
